@@ -6,7 +6,14 @@ let io: SocketServer;
 export function initSocket(server: HTTPServer, frontendUrl: string) {
   io = new SocketServer(server, {
     cors: {
-      origin: frontendUrl,
+      origin: (origin, callback) => {
+        // Allow configured frontend, any vercel.app, and localhost
+        if (!origin || origin === frontendUrl || origin.endsWith('.vercel.app') || origin.includes('localhost')) {
+          callback(null, true);
+        } else {
+          callback(null, true); // permissive for now
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },

@@ -170,8 +170,20 @@ const MatchContext = createContext<MatchContextType | null>(null);
 export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const [match, setMatch] = useState<MatchState>(loadMatchFromStorage);
   const [allMatches, setAllMatches] = useState<MatchState[]>(loadAllMatches);
+  const { user } = useAuth();
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevMatchIdRef = useRef<string>(match.id);
+  const matchIdRef = useRef<string>(match.id);
+  const isAdminRef = useRef<boolean>(false);
+
+  // Keep refs in sync
+  useEffect(() => {
+    matchIdRef.current = match.id;
+  }, [match.id]);
+
+  useEffect(() => {
+    isAdminRef.current = user ? match.admins.includes(user.id) : false;
+  }, [match.admins, user]);
 
   // Persist match state to localStorage + debounced API sync
   useEffect(() => {
@@ -239,6 +251,44 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       unsubList();
     };
   }, [match.id]);
+
+  // Initial fetch of all matches from API on mount + polling fallback
+  useEffect(() => {
+    // Initial fetch
+    fetchMatches().then(matches => {
+      const states = matches.map((m: { state: MatchState }) => m.state);
+      if (states.length > 0) {
+        setAllMatches(states);
+        saveAllMatches(states);
+      }
+    }).catch(() => {});
+
+    // Poll every 5s as fallback for Socket.io
+    const interval = setInterval(() => {
+      // Refresh all matches
+      fetchMatches().then(matches => {
+        const states = matches.map((m: { state: MatchState }) => m.state);
+        setAllMatches(states);
+        saveAllMatches(states);
+      }).catch(() => {});
+
+      // Refresh current match for spectators (non-admins)
+      const currentId = matchIdRef.current;
+      if (currentId && !isAdminRef.current) {
+        fetchMatch(currentId).then(remoteState => {
+          setMatch(prev => {
+            const remote = remoteState as MatchState;
+            if (JSON.stringify(prev) !== JSON.stringify(remote)) {
+              return remote;
+            }
+            return prev;
+          });
+        }).catch(() => {});
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Also listen for localStorage changes from other local tabs
   useEffect(() => {
