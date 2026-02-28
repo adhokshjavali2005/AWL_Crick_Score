@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, optionalAuth, type AuthRequest } from '../middleware/auth.js';
 import { broadcastMatchUpdate, broadcastMatchCreated, broadcastMatchListUpdate } from '../socket.js';
@@ -9,7 +10,7 @@ const prisma = new PrismaClient();
 /**
  * GET /api/matches — List active matches (public)
  */
-router.get('/', optionalAuth, async (_req, res) => {
+router.get('/', optionalAuth, async (_req: Request, res: Response) => {
   try {
     const matches = await prisma.match.findMany({
       where: {
@@ -35,7 +36,7 @@ router.get('/', optionalAuth, async (_req, res) => {
 /**
  * GET /api/matches/:id — Get a single match state (public)
  */
-router.get('/:id', optionalAuth, async (req, res) => {
+router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
   try {
     const matchId = req.params.id as string;
     const match = await prisma.match.findUnique({

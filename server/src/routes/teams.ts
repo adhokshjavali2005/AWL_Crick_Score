@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth.js';
 
@@ -8,7 +9,7 @@ const prisma = new PrismaClient();
 /**
  * GET /api/teams — List all team names
  */
-router.get('/', async (_req, res) => {
+router.get('/', async (_req: Request, res: Response) => {
   try {
     const teams = await prisma.teamPlayers.findMany({
       orderBy: { teamName: 'asc' },
@@ -40,7 +41,7 @@ router.get('/:name/players', async (req, res) => {
 /**
  * PUT /api/teams/:name/players — Save/update players for a team (auth required)
  */
-router.put('/:name/players', requireAuth, async (req, res) => {
+router.put('/:name/players', requireAuth, async (req: Request, res: Response) => {
   try {
     const teamName = req.params.name as string;
     const { players } = req.body;

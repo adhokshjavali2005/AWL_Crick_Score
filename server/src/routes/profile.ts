@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 
@@ -58,7 +59,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 /**
  * GET /api/profile/search?email=... — Search for a user by email (for adding admins)
  */
-router.get('/search', requireAuth, async (req, res) => {
+router.get('/search', requireAuth, async (req: Request, res: Response) => {
   try {
     const email = req.query.email as string;
     if (!email) {
