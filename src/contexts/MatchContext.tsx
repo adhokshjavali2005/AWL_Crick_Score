@@ -1,0 +1,745 @@
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { createMatchAPI, updateMatchAPI, fetchMatch, fetchMatches, fetchTeamNames, fetchTeamPlayers, saveTeamPlayersAPI } from '@/lib/api';
+import { joinMatch, leaveMatch, onMatchUpdate, onMatchesUpdated } from '@/lib/socket';
+
+export interface Player {
+  id: string;
+  name: string;
+}
+
+export type DeliveryType = 'normal' | 'noBall' | 'wide';
+
+export interface BallEvent {
+  runs: number;
+  isOut: boolean;
+  deliveryType: DeliveryType;
+  batsmanId: string;
+  bowlerId: string;
+  over: number;
+  ball: number;
+}
+
+export type MatchStatus = 'idle' | 'setup' | 'live' | 'paused' | 'inningsBreak' | 'ended';
+
+export interface TeamScore {
+  runs: number;
+  overs: number;
+  balls: number;
+}
+
+export interface MatchState {
+  id: string;
+  status: MatchStatus;
+  teamA: { name: string; players: Player[] };
+  teamB: { name: string; players: Player[] };
+  battingTeam: 'A' | 'B';
+  scoreA: TeamScore;
+  scoreB: TeamScore;
+  strikerId: string | null;
+  nonStrikerId: string | null;
+  bowlerId: string | null;
+  battingOrder: string[];
+  ballEvents: BallEvent[];
+  admins: string[];
+  totalOvers: number; // configured by admin
+  currentInnings: 1 | 2;
+  firstInningsBallEvents: BallEvent[];
+  isSuperOver: boolean;
+  mainMatchFirstInnings: BallEvent[];
+  mainMatchSecondInnings: BallEvent[];
+  superOverHistory: Array<{ firstInnings: BallEvent[]; secondInnings: BallEvent[] }>;
+}
+
+interface MatchContextType {
+  match: MatchState;
+  allMatches: MatchState[];
+  createMatch: (teamAName: string, teamBName: string) => void;
+  loadMatch: (matchId: string) => void;
+  addPlayer: (team: 'A' | 'B', name: string) => void;
+  removePlayer: (team: 'A' | 'B', playerId: string) => void;
+  setBattingTeam: (team: 'A' | 'B') => void;
+  setStriker: (playerId: string) => void;
+  setNonStriker: (playerId: string) => void;
+  setBowler: (playerId: string) => void;
+  swapStriker: () => void;
+  setTotalOvers: (overs: number) => void;
+  addRuns: (runs: number, deliveryType?: DeliveryType) => void;
+  recordOut: () => void;
+  undoLast: () => void;
+  startMatch: () => void;
+  pauseMatch: () => void;
+  endMatch: () => void;
+  addAdmin: (userId: string) => void;
+  resetMatch: () => void;
+  swapInnings: () => void;
+  startSuperOver: () => void;
+  getAllTeamNames: () => string[];
+  currentBattingScore: TeamScore;
+  currentBowlingScore: TeamScore;
+  battingPlayers: Player[];
+  bowlingPlayers: Player[];
+}
+
+const initialScore: TeamScore = { runs: 0, overs: 0, balls: 0 };
+
+const initialMatch: MatchState = {
+  id: '',
+  status: 'idle',
+  teamA: { name: '', players: [] },
+  teamB: { name: '', players: [] },
+  battingTeam: 'A',
+  scoreA: { ...initialScore },
+  scoreB: { ...initialScore },
+  strikerId: null,
+  nonStrikerId: null,
+  bowlerId: null,
+  battingOrder: [],
+  ballEvents: [],
+  admins: [],
+  totalOvers: 5,
+  currentInnings: 1,
+  firstInningsBallEvents: [],
+  isSuperOver: false,
+  mainMatchFirstInnings: [],
+  mainMatchSecondInnings: [],
+  superOverHistory: [],
+};
+
+const MATCH_STORAGE_KEY = 'criclive_match_state';
+const ALL_MATCHES_KEY = 'criclive_all_matches';
+const TEAM_PLAYERS_KEY = 'criclive_team_players';
+
+const loadTeamPlayers = (teamName: string): Player[] => {
+  try {
+    const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
+    if (stored) {
+      const teamPlayers = JSON.parse(stored) as Record<string, Player[]>;
+      return teamPlayers[teamName] || [];
+    }
+  } catch (e) { /* ignore */ }
+  return [];
+};
+
+const saveTeamPlayers = (teamName: string, players: Player[]) => {
+  try {
+    const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
+    const teamPlayers = stored ? JSON.parse(stored) as Record<string, Player[]> : {};
+    teamPlayers[teamName] = players;
+    localStorage.setItem(TEAM_PLAYERS_KEY, JSON.stringify(teamPlayers));
+  } catch (e) { /* ignore */ }
+};
+
+const getAllTeamNames = (): string[] => {
+  try {
+    const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
+    if (stored) {
+      const teamPlayers = JSON.parse(stored) as Record<string, Player[]>;
+      return Object.keys(teamPlayers).sort();
+    }
+  } catch (e) { /* ignore */ }
+  return [];
+};
+
+const loadMatchFromStorage = (): MatchState => {
+  try {
+    const stored = localStorage.getItem(MATCH_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored) as MatchState;
+    }
+  } catch (e) {
+    // ignore parse errors
+  }
+  return { ...initialMatch };
+};
+
+const loadAllMatches = (): MatchState[] => {
+  try {
+    const stored = localStorage.getItem(ALL_MATCHES_KEY);
+    if (stored) return JSON.parse(stored) as MatchState[];
+  } catch (e) { /* ignore */ }
+  return [];
+};
+
+const saveAllMatches = (matches: MatchState[]) => {
+  localStorage.setItem(ALL_MATCHES_KEY, JSON.stringify(matches));
+};
+
+const MatchContext = createContext<MatchContextType | null>(null);
+
+export const MatchProvider = ({ children }: { children: ReactNode }) => {
+  const [match, setMatch] = useState<MatchState>(loadMatchFromStorage);
+  const [allMatches, setAllMatches] = useState<MatchState[]>(loadAllMatches);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevMatchIdRef = useRef<string>(match.id);
+
+  // Persist match state to localStorage + debounced API sync
+  useEffect(() => {
+    localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(match));
+
+    // Update allMatches locally
+    if (match.id) {
+      setAllMatches(prev => {
+        const updated = prev.map(m => m.id === match.id ? match : m);
+        if (!prev.find(m => m.id === match.id)) return prev;
+        saveAllMatches(updated);
+        return updated;
+      });
+    }
+
+    // Debounced API sync (300ms) — only if match has an id and admins
+    if (match.id && match.admins.length > 0) {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => {
+        updateMatchAPI(match.id, match).catch(() => {
+          // API sync failed — data is still safe in localStorage
+        });
+      }, 300);
+    }
+
+    return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
+  }, [match]);
+
+  // Socket.io: join/leave match room and listen for real-time updates
+  useEffect(() => {
+    if (match.id) {
+      // Leave previous room if match changed
+      if (prevMatchIdRef.current && prevMatchIdRef.current !== match.id) {
+        leaveMatch(prevMatchIdRef.current);
+      }
+      joinMatch(match.id);
+      prevMatchIdRef.current = match.id;
+    }
+
+    const unsubUpdate = onMatchUpdate((data: { matchId: string; state: unknown }) => {
+      if (data.matchId === match.id) {
+        // Only apply remote update if we're not the admin (avoids echo)
+        const remoteState = data.state as MatchState;
+        setMatch(prev => {
+          // Don't overwrite our own changes — check if the update is newer
+          if (JSON.stringify(prev) !== JSON.stringify(remoteState)) {
+            return remoteState;
+          }
+          return prev;
+        });
+      }
+    });
+
+    const unsubList = onMatchesUpdated(() => {
+      // Refresh match list from API
+      fetchMatches().then(matches => {
+        const states = matches.map((m: { state: MatchState }) => m.state);
+        setAllMatches(states);
+        saveAllMatches(states);
+      }).catch(() => { /* ignore */ });
+    });
+
+    return () => {
+      unsubUpdate();
+      unsubList();
+    };
+  }, [match.id]);
+
+  // Also listen for localStorage changes from other local tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === MATCH_STORAGE_KEY && e.newValue) {
+        try { setMatch(JSON.parse(e.newValue) as MatchState); } catch { /* ignore */ }
+      }
+      if (e.key === ALL_MATCHES_KEY && e.newValue) {
+        try { setAllMatches(JSON.parse(e.newValue) as MatchState[]); } catch { /* ignore */ }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Enhanced getAllTeamNames that also fetches from API
+  const getAllTeamNamesWithApi = useCallback((): string[] => {
+    const localNames = getAllTeamNames();
+    // Fire-and-forget API fetch to enrich localStorage cache
+    fetchTeamNames().then((apiNames: string[]) => {
+      if (apiNames.length > 0) {
+        const merged = Array.from(new Set([...localNames, ...apiNames])).sort();
+        // Update localStorage with merged set
+        const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
+        const teamPlayers = stored ? JSON.parse(stored) as Record<string, Player[]> : {};
+        for (const name of apiNames) {
+          if (!teamPlayers[name]) teamPlayers[name] = [];
+        }
+        localStorage.setItem(TEAM_PLAYERS_KEY, JSON.stringify(teamPlayers));
+      }
+    }).catch(() => { /* ignore */ });
+    return localNames;
+  }, []);
+
+  const createMatch = useCallback((teamAName: string, teamBName: string) => {
+    // Load previous players from localStorage cache
+    const teamAPlayers = loadTeamPlayers(teamAName);
+    const teamBPlayers = loadTeamPlayers(teamBName);
+    
+    const newMatch: MatchState = {
+      ...initialMatch,
+      id: crypto.randomUUID(),
+      status: 'setup',
+      teamA: { name: teamAName, players: teamAPlayers },
+      teamB: { name: teamBName, players: teamBPlayers },
+    };
+    setMatch(newMatch);
+    setAllMatches(prev => {
+      const updated = [...prev, newMatch];
+      saveAllMatches(updated);
+      return updated;
+    });
+
+    // Also try loading from API (async, enriches local cache)
+    Promise.all([
+      fetchTeamPlayers(teamAName).catch(() => null),
+      fetchTeamPlayers(teamBName).catch(() => null),
+    ]).then(([apiPlayersA, apiPlayersB]) => {
+      setMatch(prev => {
+        if (prev.id !== newMatch.id) return prev;
+        const pA = (apiPlayersA && apiPlayersA.length > 0) ? apiPlayersA : prev.teamA.players;
+        const pB = (apiPlayersB && apiPlayersB.length > 0) ? apiPlayersB : prev.teamB.players;
+        return {
+          ...prev,
+          teamA: { ...prev.teamA, players: pA },
+          teamB: { ...prev.teamB, players: pB },
+        };
+      });
+    });
+
+    // Persist to API
+    createMatchAPI(newMatch).catch(() => { /* will sync later */ });
+  }, []);
+
+  const loadMatch = useCallback((matchId: string) => {
+    // Try local first
+    const found = allMatches.find(m => m.id === matchId);
+    if (found) {
+      setMatch(found);
+    }
+    // Also fetch from API for latest state
+    fetchMatch(matchId).then((state: MatchState) => {
+      setMatch(state);
+    }).catch(() => { /* use local version */ });
+  }, [allMatches]);
+
+  const addPlayer = useCallback((team: 'A' | 'B', name: string) => {
+    setMatch(prev => {
+      const key = team === 'A' ? 'teamA' : 'teamB';
+      const teamName = prev[key].name;
+      const newPlayer = { id: crypto.randomUUID(), name };
+      const updatedPlayers = [...prev[key].players, newPlayer];
+      
+      // Save to localStorage cache + API
+      if (teamName) {
+        saveTeamPlayers(teamName, updatedPlayers);
+        saveTeamPlayersAPI(teamName, updatedPlayers).catch(() => { /* will sync later */ });
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...prev[key], players: updatedPlayers },
+      };
+    });
+  }, []);
+
+  const removePlayer = useCallback((team: 'A' | 'B', playerId: string) => {
+    setMatch(prev => {
+      const key = team === 'A' ? 'teamA' : 'teamB';
+      const teamName = prev[key].name;
+      const updatedPlayers = prev[key].players.filter(p => p.id !== playerId);
+      
+      // Update localStorage cache + API
+      if (teamName) {
+        saveTeamPlayers(teamName, updatedPlayers);
+        saveTeamPlayersAPI(teamName, updatedPlayers).catch(() => { /* will sync later */ });
+      }
+      
+      return {
+        ...prev,
+        [key]: { ...prev[key], players: updatedPlayers },
+      };
+    });
+  }, []);
+
+  const setBattingTeam = useCallback((team: 'A' | 'B') => {
+    setMatch(prev => ({ ...prev, battingTeam: team, strikerId: null, nonStrikerId: null, bowlerId: null }));
+  }, []);
+
+  const setStriker = useCallback((playerId: string) => {
+    setMatch(prev => ({ ...prev, strikerId: playerId }));
+  }, []);
+
+  const setNonStriker = useCallback((playerId: string) => {
+    setMatch(prev => ({ ...prev, nonStrikerId: playerId }));
+  }, []);
+
+  const setBowler = useCallback((playerId: string) => {
+    setMatch(prev => ({ ...prev, bowlerId: playerId }));
+  }, []);
+
+  const swapStriker = useCallback(() => {
+    setMatch(prev => ({
+      ...prev,
+      strikerId: prev.nonStrikerId,
+      nonStrikerId: prev.strikerId,
+    }));
+  }, []);
+
+  const getNextBatsman = (match: MatchState): string | null => {
+    const team = match.battingTeam === 'A' ? match.teamA : match.teamB;
+    const usedIds = new Set([match.strikerId, match.nonStrikerId]);
+    const available = team.players.filter(p => !usedIds.has(p.id));
+
+    if (available.length === 0) {
+      // No batsman left — restart in random order (NO ALL-OUT rule)
+      const shuffled = [...team.players].sort(() => Math.random() - 0.5);
+      return shuffled[0]?.id || null;
+    }
+    return available[Math.floor(Math.random() * available.length)]?.id || null;
+  };
+
+  const advanceBall = (score: TeamScore): TeamScore => {
+    const newBalls = score.balls + 1;
+    if (newBalls >= 6) {
+      return { ...score, overs: score.overs + 1, balls: 0 };
+    }
+    return { ...score, balls: newBalls };
+  };
+
+  const shouldSwapAfterOver = (score: TeamScore): boolean => {
+    // Swap every 2 overs (at over 2, 4, 6, etc.) when ball count resets
+    return score.balls === 0 && score.overs > 0 && score.overs % 2 === 0;
+  };
+
+  const setTotalOvers = useCallback((overs: number) => {
+    setMatch(prev => ({ ...prev, totalOvers: overs }));
+  }, []);
+
+  const addRuns = useCallback((runs: number, deliveryType: DeliveryType = 'normal') => {
+    setMatch(prev => {
+      if (prev.status !== 'live') return prev;
+
+      const scoreKey = prev.battingTeam === 'A' ? 'scoreA' : 'scoreB';
+      const currentScore = prev[scoreKey];
+
+      // No-ball and wide: add 1 penalty run, do NOT advance ball count
+      if (deliveryType === 'noBall' || deliveryType === 'wide') {
+        const penaltyRuns = runs + 1; // extra run always included
+        const event: BallEvent = {
+          runs: penaltyRuns,
+          isOut: false,
+          deliveryType,
+          batsmanId: prev.strikerId || '',
+          bowlerId: prev.bowlerId || '',
+          over: currentScore.overs,
+          ball: currentScore.balls,
+        };
+        return {
+          ...prev,
+          [scoreKey]: { ...currentScore, runs: currentScore.runs + penaltyRuns },
+          ballEvents: [...prev.ballEvents, event],
+        };
+      }
+
+      const newScore = advanceBall({ ...currentScore, runs: currentScore.runs + runs });
+
+      const event: BallEvent = {
+        runs,
+        isOut: false,
+        deliveryType: 'normal',
+        batsmanId: prev.strikerId || '',
+        bowlerId: prev.bowlerId || '',
+        over: currentScore.overs,
+        ball: currentScore.balls,
+      };
+
+      // Swap on odd runs
+      let strikerId = prev.strikerId;
+      let nonStrikerId = prev.nonStrikerId;
+      if (runs % 2 === 1) {
+        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+      }
+
+      // End of over swap
+      if (newScore.balls === 0) {
+        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+      }
+
+      // Every 2 overs auto-swap
+      if (shouldSwapAfterOver(newScore)) {
+        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+      }
+
+      // Auto-end innings or match if totalOvers reached
+      let newStatus: MatchStatus = prev.status;
+      if (prev.totalOvers > 0 && newScore.overs >= prev.totalOvers) {
+        newStatus = prev.currentInnings === 1 ? 'inningsBreak' : 'ended';
+      }
+
+      // Auto-win: chasing team surpasses target in 2nd innings
+      if (prev.currentInnings === 2) {
+        const bowlingScoreKey = prev.battingTeam === 'A' ? 'scoreB' : 'scoreA';
+        const targetRuns = prev[bowlingScoreKey].runs + 1;
+        if (newScore.runs >= targetRuns) {
+          newStatus = 'ended';
+        }
+      }
+
+      return {
+        ...prev,
+        status: newStatus,
+        [scoreKey]: newScore,
+        strikerId,
+        nonStrikerId,
+        ballEvents: [...prev.ballEvents, event],
+        battingOrder: prev.battingOrder.includes(prev.strikerId || '')
+          ? prev.battingOrder
+          : [...prev.battingOrder, prev.strikerId || ''],
+      };
+    });
+  }, []);
+
+  const recordOut = useCallback(() => {
+    setMatch(prev => {
+      if (prev.status !== 'live') return prev;
+
+      const scoreKey = prev.battingTeam === 'A' ? 'scoreA' : 'scoreB';
+      const currentScore = prev[scoreKey];
+
+      // OUT: subtract 5 runs
+      const newRuns = currentScore.runs - 5;
+      const newScore = advanceBall({ ...currentScore, runs: newRuns });
+
+      const event: BallEvent = {
+        runs: -5,
+        isOut: true,
+        deliveryType: 'normal',
+        batsmanId: prev.strikerId || '',
+        bowlerId: prev.bowlerId || '',
+        over: currentScore.overs,
+        ball: currentScore.balls,
+      };
+
+      // Get next batsman to replace striker
+      const nextBatsman = getNextBatsman(prev);
+
+      let strikerId = nextBatsman;
+      let nonStrikerId = prev.nonStrikerId;
+
+      // End of over swap
+      if (newScore.balls === 0) {
+        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+      }
+
+      if (shouldSwapAfterOver(newScore)) {
+        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+      }
+
+      // Auto-end innings or match if totalOvers reached
+      let newStatus: MatchStatus = prev.status;
+      if (prev.totalOvers > 0 && newScore.overs >= prev.totalOvers) {
+        newStatus = prev.currentInnings === 1 ? 'inningsBreak' : 'ended';
+      }
+
+      return {
+        ...prev,
+        status: newStatus,
+        [scoreKey]: newScore,
+        strikerId,
+        nonStrikerId,
+        ballEvents: [...prev.ballEvents, event],
+        battingOrder: [...prev.battingOrder, nextBatsman || ''],
+      };
+    });
+  }, []);
+
+  const undoLast = useCallback(() => {
+    setMatch(prev => {
+      if (prev.ballEvents.length === 0) return prev;
+
+      const events = [...prev.ballEvents];
+      const lastEvent = events.pop()!;
+      const scoreKey = prev.battingTeam === 'A' ? 'scoreA' : 'scoreB';
+      const currentScore = prev[scoreKey];
+
+      // Reverse ball count only for legal deliveries
+      let overs = currentScore.overs;
+      let balls = currentScore.balls;
+      if (lastEvent.deliveryType === 'normal' || lastEvent.isOut) {
+        if (balls === 0 && overs > 0) {
+          overs--;
+          balls = 5;
+        } else {
+          balls--;
+        }
+      }
+
+      const runs = currentScore.runs - lastEvent.runs;
+
+      // Restore status to live if it was ended or inningsBreak due to this ball
+      const newStatus = (prev.status === 'ended' || prev.status === 'inningsBreak') ? 'live' : prev.status;
+
+      // Reverse striker/non-striker swaps that happened on that ball
+      let restoredStrikerId = lastEvent.batsmanId || prev.strikerId;
+      let restoredNonStrikerId = prev.nonStrikerId;
+
+      // If it was end of over (current balls=0 means we advanced past over boundary)
+      // and the previous ball would have caused swaps, reverse them
+      if (balls === 5 && overs < currentScore.overs) {
+        // Ball was the last of an over — end-of-over swap happened, reverse it
+        [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
+      } else if (!lastEvent.isOut && lastEvent.deliveryType === 'normal' && lastEvent.runs % 2 === 1) {
+        // Odd runs caused a swap, reverse it
+        [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
+      }
+
+      return {
+        ...prev,
+        status: newStatus,
+        [scoreKey]: { runs, overs, balls },
+        strikerId: restoredStrikerId,
+        nonStrikerId: restoredNonStrikerId,
+        ballEvents: events,
+      };
+    });
+  }, []);
+
+  const startMatch = useCallback(() => {
+    setMatch(prev => ({ ...prev, status: 'live' }));
+  }, []);
+
+  const pauseMatch = useCallback(() => {
+    setMatch(prev => ({ ...prev, status: prev.status === 'live' ? 'paused' : 'live' }));
+  }, []);
+
+  const endMatch = useCallback(() => {
+    setMatch(prev => ({ ...prev, status: 'ended' }));
+  }, []);
+
+  const addAdmin = useCallback((userId: string) => {
+    setMatch(prev => ({
+      ...prev,
+      admins: prev.admins.includes(userId) ? prev.admins : [...prev.admins, userId],
+    }));
+  }, []);
+
+  const resetMatch = useCallback(() => {
+    setMatch({ ...initialMatch });
+  }, []);
+
+  const swapInnings = useCallback(() => {
+    setMatch(prev => ({
+      ...prev,
+      status: 'live',
+      battingTeam: prev.battingTeam === 'A' ? 'B' : 'A',
+      currentInnings: 2 as const,
+      strikerId: null,
+      nonStrikerId: null,
+      bowlerId: null,
+      battingOrder: [],
+      firstInningsBallEvents: prev.ballEvents,
+      ballEvents: [],
+    }));
+  }, []);
+
+  const startSuperOver = useCallback(() => {
+    setMatch(prev => {
+      const isFirstSuperOver = !prev.isSuperOver;
+      
+      if (isFirstSuperOver) {
+        // First super over - save main match
+        return {
+          ...prev,
+          isSuperOver: true,
+          mainMatchFirstInnings: prev.firstInningsBallEvents,
+          mainMatchSecondInnings: prev.ballEvents,
+          firstInningsBallEvents: [],
+          ballEvents: [],
+          scoreA: { runs: 0, overs: 0, balls: 0 },
+          scoreB: { runs: 0, overs: 0, balls: 0 },
+          totalOvers: 1,
+          currentInnings: 1,
+          status: 'live',
+          battingTeam: prev.battingTeam === 'A' ? 'B' : 'A',
+        };
+      } else {
+        // Subsequent super over - save previous super over to history
+        return {
+          ...prev,
+          superOverHistory: [
+            ...prev.superOverHistory,
+            {
+              firstInnings: prev.firstInningsBallEvents,
+              secondInnings: prev.ballEvents,
+            },
+          ],
+          firstInningsBallEvents: [],
+          ballEvents: [],
+          scoreA: { runs: 0, overs: 0, balls: 0 },
+          scoreB: { runs: 0, overs: 0, balls: 0 },
+          totalOvers: 1,
+          currentInnings: 1,
+          status: 'live',
+          battingTeam: prev.battingTeam === 'A' ? 'B' : 'A',
+        };
+      }
+    });
+  }, []);
+
+  const battingTeamData = match.battingTeam === 'A' ? match.teamA : match.teamB;
+  const bowlingTeamData = match.battingTeam === 'A' ? match.teamB : match.teamA;
+  const currentBattingScore = match.battingTeam === 'A' ? match.scoreA : match.scoreB;
+  const currentBowlingScore = match.battingTeam === 'A' ? match.scoreB : match.scoreA;
+
+  return (
+    <MatchContext.Provider
+      value={{
+        match,
+        allMatches,
+        createMatch,
+        loadMatch,
+        addPlayer,
+        removePlayer,
+        setBattingTeam,
+        setStriker,
+        setNonStriker,
+        setBowler,
+        swapStriker,
+        setTotalOvers,
+        addRuns,
+        recordOut,
+        undoLast,
+        startMatch,
+        pauseMatch,
+        endMatch,
+        addAdmin,
+        resetMatch,
+        swapInnings,
+        startSuperOver,
+        getAllTeamNames: getAllTeamNamesWithApi,
+        currentBattingScore,
+        currentBowlingScore,
+        battingPlayers: battingTeamData.players,
+        bowlingPlayers: bowlingTeamData.players,
+      }}
+    >
+      {children}
+    </MatchContext.Provider>
+  );
+};
+
+export const useMatch = () => {
+  const ctx = useContext(MatchContext);
+  if (!ctx) throw new Error('useMatch must be used within MatchProvider');
+  return ctx;
+};
+
+export const useMatchAdmin = () => {
+  const { user } = useAuth();
+  const { match } = useMatch();
+  return !!user && match.admins.includes(user.id);
+};
+

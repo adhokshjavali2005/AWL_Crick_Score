@@ -1,0 +1,30 @@
+# Render Blueprint — deploy backend + database
+
+databases:
+  - name: criclive-db
+    plan: free
+    databaseName: criclive
+    user: criclive
+
+services:
+  # Backend API + WebSocket server
+  - type: web
+    name: criclive-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: criclive-db
+          property: connectionString
+      - key: SUPABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: FRONTEND_URL
+        sync: false  # Set to your frontend URL (e.g., https://criclive.onrender.com)
+      - key: NODE_ENV
+        value: production

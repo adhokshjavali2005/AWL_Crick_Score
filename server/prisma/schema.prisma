@@ -1,0 +1,40 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// User profile synced from Supabase Auth
+model Profile {
+  id        String   @id /// Supabase auth user id
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Cricket match — full state stored as JSONB for flexibility
+model Match {
+  id        String   @id @default(uuid())
+  state     Json     /// Full MatchState object
+  status    String   @default("idle") /// Denormalized for listing queries
+  teamAName String   @default("")
+  teamBName String   @default("")
+  createdBy String?  /// Supabase user id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdBy])
+}
+
+/// Persistent team player rosters (remembered across matches)
+model TeamPlayers {
+  id        String   @id @default(uuid())
+  teamName  String   @unique
+  players   Json     /// Array of { id: string, name: string }
+  updatedAt DateTime @updatedAt
+}
