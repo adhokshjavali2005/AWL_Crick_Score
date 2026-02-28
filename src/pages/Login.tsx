@@ -12,9 +12,9 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const ok = await login(email, password);
-    if (ok) navigate('/');
-    else setError('Invalid credentials');
+    const err = await login(email, password);
+    if (!err) navigate('/');
+    else setError(err);
   };
 
   return (

@@ -13,9 +13,13 @@ const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const ok = await register(name, email, password);
-    if (ok) navigate('/');
-    else setError('Email already registered');
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    const err = await register(name, email, password);
+    if (!err) navigate('/');
+    else setError(err);
   };
 
   return (
@@ -61,7 +65,7 @@ const Register = () => {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              minLength={4}
+              minLength={6}
               className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               placeholder="••••••••"
             />

@@ -16,8 +16,8 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<string | null>;
+  register: (name: string, email: string, password: string) => Promise<string | null>;
   logout: () => void;
 }
 
@@ -87,20 +87,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       options: { data: { name } },
     });
 
-    if (error || !data.user) return false;
+    if (error) return error.message;
+    if (!data.user) return 'Registration failed. Please try again.';
 
     saveName(data.user.id, name);
     try { await upsertProfile(name, email); } catch { /* backend may not be ready */ }
-    return true;
+    return null;
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error || !data.user) return false;
+    if (error) return error.message;
+    if (!data.user) return 'Login failed. Please try again.';
 
     const name = data.user.user_metadata?.name || getName(data.user.id) || email.split('@')[0];
     try { await upsertProfile(name, email); } catch { /* backend may not be ready */ }
-    return true;
+    return null;
   }, []);
 
   const logout = useCallback(() => {
