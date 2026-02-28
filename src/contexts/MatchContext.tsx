@@ -327,6 +327,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     // Load previous players from localStorage cache
     const teamAPlayers = loadTeamPlayers(teamAName);
     const teamBPlayers = loadTeamPlayers(teamBName);
+
+    // Include the current user as admin from the start
+    const creatorId = user?.id;
     
     const newMatch: MatchState = {
       ...initialMatch,
@@ -334,6 +337,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       status: 'setup',
       teamA: { name: teamAName, players: teamAPlayers },
       teamB: { name: teamBName, players: teamBPlayers },
+      admins: creatorId ? [creatorId] : [],
     };
     setMatch(newMatch);
     setAllMatches(prev => {
@@ -361,7 +365,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
     // Persist to API
     createMatchAPI(newMatch).catch(() => { /* will sync later */ });
-  }, []);
+  }, [user]);
 
   const loadMatch = useCallback((matchId: string) => {
     // Try local first

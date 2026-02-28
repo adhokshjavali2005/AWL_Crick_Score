@@ -96,7 +96,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    // Verify user is a match admin
+    // Verify user is a match admin or match creator
     const existing = await prisma.match.findUnique({
       where: { id: matchId },
     });
@@ -107,7 +107,12 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     const existingState = existing.state as Record<string, unknown>;
     const admins = (existingState.admins || []) as string[];
-    if (!admins.includes(req.userId!)) {
+    const isAdmin = admins.includes(req.userId!);
+    const isCreator = existing.createdBy === req.userId;
+    // Also check if the incoming state includes this user as admin (first update after create)
+    const incomingAdmins = (state.admins || []) as string[];
+    const isIncomingAdmin = incomingAdmins.includes(req.userId!);
+    if (!isAdmin && !isCreator && !isIncomingAdmin) {
       res.status(403).json({ error: 'Not authorized to update this match' });
       return;
     }
