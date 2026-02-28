@@ -137,7 +137,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 /**
- * DELETE /api/matches/:id — Delete a match (auth required, must be admin)
+ * DELETE /api/matches/:id — Delete a match (auth required, must be admin or creator)
  */
 router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
   try {
@@ -152,7 +152,9 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 
     const existingState = existing.state as Record<string, unknown>;
     const admins = (existingState.admins || []) as string[];
-    if (!admins.includes(req.userId!)) {
+    const isAdmin = admins.includes(req.userId!);
+    const isCreator = existing.createdBy === req.userId;
+    if (!isAdmin && !isCreator) {
       res.status(403).json({ error: 'Not authorized to delete this match' });
       return;
     }
@@ -163,6 +165,30 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Error deleting match:', error);
     res.status(500).json({ error: 'Failed to delete match' });
+  }
+});
+
+/**
+ * DELETE /api/matches/cleanup/orphaned — Delete matches with no admins and no creator (auth required)
+ */
+router.delete('/cleanup/orphaned', requireAuth, async (_req: AuthRequest, res) => {
+  try {
+    const allMatches = await prisma.match.findMany();
+    const orphaned = allMatches.filter(m => {
+      const state = m.state as Record<string, unknown>;
+      const admins = (state.admins || []) as string[];
+      return admins.length === 0 && !m.createdBy;
+    });
+
+    for (const m of orphaned) {
+      await prisma.match.delete({ where: { id: m.id } });
+    }
+
+    broadcastMatchListUpdate();
+    res.json({ deleted: orphaned.length, ids: orphaned.map(m => m.id) });
+  } catch (error) {
+    console.error('Error cleaning up matches:', error);
+    res.status(500).json({ error: 'Failed to clean up matches' });
   }
 });
 

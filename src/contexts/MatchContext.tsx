@@ -203,8 +203,10 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     if (match.id && match.admins.length > 0) {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(() => {
-        updateMatchAPI(match.id, match).catch(() => {
-          // API sync failed — data is still safe in localStorage
+        updateMatchAPI(match.id, match).then(() => {
+          console.log('[CricLive] Synced match to API:', match.id, 'status:', match.status, 'scoreA:', match.scoreA.runs);
+        }).catch((err) => {
+          console.error('[CricLive] API sync failed:', err);
         });
       }, 300);
     }
@@ -261,7 +263,10 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         setAllMatches(states);
         saveAllMatches(states);
       }
-    }).catch(() => {});
+      console.log('[CricLive] Initial fetch: loaded', states.length, 'matches');
+    }).catch((err) => {
+      console.error('[CricLive] Initial fetch failed:', err);
+    });
 
     // Poll every 5s as fallback for Socket.io
     const interval = setInterval(() => {
@@ -270,7 +275,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         const states = matches.map((m: { state: MatchState }) => m.state);
         setAllMatches(states);
         saveAllMatches(states);
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error('[CricLive] Poll fetch failed:', err);
+      });
 
       // Refresh current match for spectators (non-admins)
       const currentId = matchIdRef.current;
@@ -283,7 +290,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
             }
             return prev;
           });
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error('[CricLive] Poll match fetch failed:', err);
+        });
       }
     }, 5000);
 

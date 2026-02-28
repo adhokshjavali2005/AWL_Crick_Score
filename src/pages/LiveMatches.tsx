@@ -1,14 +1,27 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useMatch } from '@/contexts/MatchContext';
-import { ArrowLeft, Radio } from 'lucide-react';
+import { ArrowLeft, Radio, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 const LiveMatches = () => {
   const { allMatches, loadMatch } = useMatch();
   const navigate = useNavigate();
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  // Track when allMatches changes = data was refreshed
+  useEffect(() => {
+    if (allMatches.length > 0) {
+      setLastUpdate(new Date());
+    }
+  }, [allMatches]);
 
   const liveMatches = allMatches.filter(
     m => m.status === 'live' || m.status === 'inningsBreak' || m.status === 'setup' || m.status === 'paused'
   );
+
+  // Sort: live first, then innings break, then paused, then setup
+  const statusOrder: Record<string, number> = { live: 0, inningsBreak: 1, paused: 2, setup: 3 };
+  const sortedMatches = [...liveMatches].sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
 
   const handleViewMatch = (matchId: string) => {
     loadMatch(matchId);
@@ -25,8 +38,11 @@ const LiveMatches = () => {
           </Link>
           <div>
             <h1 className="text-xl font-bold text-foreground">Live Matches</h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
               {liveMatches.length} active match{liveMatches.length !== 1 ? 'es' : ''}
+              <span className="mx-1">·</span>
+              <RefreshCw className="w-3 h-3 animate-spin" style={{ animationDuration: '5s' }} />
+              <span>Updated {lastUpdate.toLocaleTimeString()}</span>
             </p>
           </div>
         </div>
@@ -47,7 +63,7 @@ const LiveMatches = () => {
           </div>
         ) : (
           <div className="space-y-3">
-            {liveMatches.map(m => (
+            {sortedMatches.map(m => (
               <button
                 key={m.id}
                 onClick={() => handleViewMatch(m.id)}
