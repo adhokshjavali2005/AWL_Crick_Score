@@ -522,6 +522,17 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     return available[Math.floor(Math.random() * available.length)]?.id || null;
   };
 
+  const getNextBowler = (match: MatchState): string | null => {
+    const fieldingTeam = match.battingTeam === 'A' ? match.teamB : match.teamA;
+    const available = fieldingTeam.players.filter(p => p.id !== match.bowlerId);
+
+    if (available.length === 0) {
+      // Only one player, keep using them
+      return match.bowlerId;
+    }
+    return available[Math.floor(Math.random() * available.length)]?.id || null;
+  };
+
   const advanceBall = (score: TeamScore): TeamScore => {
     const newBalls = score.balls + 1;
     if (newBalls >= 6) {
@@ -580,8 +591,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // End of over swap — happens after EVERY over
+      let newBowlerId = prev.bowlerId;
       if (newScore.balls === 0) {
         [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+        // Change bowler at end of every over
+        newBowlerId = getNextBowler(prev) || prev.bowlerId;
       }
 
       // Auto-end innings or match if totalOvers reached
@@ -596,6 +610,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         [scoreKey]: newScore,
         strikerId,
         nonStrikerId,
+        bowlerId: newBowlerId,
         ballEvents: [...prev.ballEvents, event],
         battingOrder: prev.battingOrder.includes(prev.strikerId || '')
           ? prev.battingOrder
@@ -630,9 +645,15 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
       let strikerId = nextBatsman;
       let nonStrikerId = prev.nonStrikerId;
+      let newBowlerId = prev.bowlerId;
 
       // NOTE: No end-of-over swap here. New batsman is already at strike position.
       // Normal end-of-over swap only happens in addRuns, not after an out.
+
+      // Change bowler at end of every over
+      if (newScore.balls === 0) {
+        newBowlerId = getNextBowler(prev) || prev.bowlerId;
+      }
 
       // Auto-end innings or match if totalOvers reached
       let newStatus: MatchStatus = prev.status;
@@ -646,6 +667,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         [scoreKey]: newScore,
         strikerId,
         nonStrikerId,
+        bowlerId: newBowlerId,
         ballEvents: [...prev.ballEvents, event],
         battingOrder: [...prev.battingOrder, nextBatsman || ''],
       };
