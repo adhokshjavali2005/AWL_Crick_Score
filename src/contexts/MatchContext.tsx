@@ -735,16 +735,19 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       const newStatus = (prev.status === 'ended' || prev.status === 'inningsBreak') ? 'live' : prev.status;
 
       // Reverse striker/non-striker swaps that happened on that ball
-      let restoredStrikerId = lastEvent.batsmanId || prev.strikerId;
+      let restoredStrikerId = prev.strikerId;
       let restoredNonStrikerId = prev.nonStrikerId;
 
+      // Check if odd runs caused a swap (need to reverse it)
+      if (!lastEvent.isOut && lastEvent.deliveryType === 'normal' && lastEvent.runs % 2 === 1) {
+        // Odd runs caused a swap, reverse it
+        [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
+      }
+
       // If it was end of over (current balls=0 means we advanced past over boundary)
-      // and the previous ball would have caused swaps, reverse them
+      // the end-of-over swap happened, reverse it
       if (balls === 5 && overs < currentScore.overs) {
         // Ball was the last of an over — end-of-over swap happened, reverse it
-        [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
-      } else if (!lastEvent.isOut && lastEvent.deliveryType === 'normal' && lastEvent.runs % 2 === 1) {
-        // Odd runs caused a swap, reverse it
         [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
       }
 
