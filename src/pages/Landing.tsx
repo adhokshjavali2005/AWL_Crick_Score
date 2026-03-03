@@ -17,7 +17,7 @@ const Landing = () => {
     <div className="min-h-[calc(100vh-3.5rem)] cricket-gradient flex flex-col items-center justify-center px-4 py-12">
       <div className="text-center max-w-md w-full space-y-8">
         {isAuthenticated && user && (
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Hi {user.name}</h1>
+          <h1 className="text-3xl font-bold text-primary tracking-tight">Hi {user.name} 👋</h1>
         )}
         <div className="space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mx-auto text-3xl">
