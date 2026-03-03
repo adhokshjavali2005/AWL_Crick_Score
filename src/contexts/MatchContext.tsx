@@ -181,8 +181,13 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   // Wrapper for setMatch that marks the change as local (from user action)
   const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
     isLocalChangeRef.current = true;
-    setMatch(updater);
-  }, []);
+    setMatch(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      // Synchronously update isAdminRef so poll/socket guards work immediately
+      isAdminRef.current = user ? next.admins.includes(user.id) : false;
+      return next;
+    });
+  }, [user]);
 
   // Keep refs in sync
   useEffect(() => {
@@ -190,6 +195,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, [match.id]);
 
   useEffect(() => {
+    // Defensive sync — also set in setMatchLocal for immediate use
     isAdminRef.current = user ? match.admins.includes(user.id) : false;
   }, [match.admins, user]);
 
@@ -369,7 +375,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       teamB: { name: teamBName, players: teamBPlayers },
       admins: creatorId ? [creatorId] : [],
     };
-    setMatch(newMatch);
+    setMatchLocal(newMatch);
     setAllMatches(prev => {
       const updated = [...prev, newMatch];
       saveAllMatches(updated);
