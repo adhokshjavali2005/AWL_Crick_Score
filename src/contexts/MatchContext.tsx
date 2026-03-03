@@ -549,15 +549,6 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         newStatus = prev.currentInnings === 1 ? 'inningsBreak' : 'ended';
       }
 
-      // Auto-win: chasing team surpasses target in 2nd innings
-      if (prev.currentInnings === 2) {
-        const bowlingScoreKey = prev.battingTeam === 'A' ? 'scoreB' : 'scoreA';
-        const targetRuns = prev[bowlingScoreKey].runs + 1;
-        if (newScore.runs >= targetRuns) {
-          newStatus = 'ended';
-        }
-      }
-
       return {
         ...prev,
         status: newStatus,
