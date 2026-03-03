@@ -487,9 +487,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
   const setStriker = useCallback((playerId: string) => {
     setMatchLocal(prev => {
-      // Prevent setting same player as both striker and non-striker
+      // If same player is already non-striker, swap them (move old non-striker out)
       if (playerId === prev.nonStrikerId) {
-        return prev; // Don't allow duplicate
+        return { ...prev, strikerId: playerId, nonStrikerId: prev.strikerId };
       }
       return { ...prev, strikerId: playerId };
     });
@@ -497,9 +497,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
   const setNonStriker = useCallback((playerId: string) => {
     setMatchLocal(prev => {
-      // Prevent setting same player as both striker and non-striker
+      // If same player is already striker, swap them (move old striker out)
       if (playerId === prev.strikerId) {
-        return prev; // Don't allow duplicate
+        return { ...prev, nonStrikerId: playerId, strikerId: prev.nonStrikerId };
       }
       return { ...prev, nonStrikerId: playerId };
     });
@@ -519,19 +519,22 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
   const getNextBatsman = (match: MatchState): string | null => {
     const team = match.battingTeam === 'A' ? match.teamA : match.teamB;
+    // Exclude BOTH current striker and non-striker
     const usedIds = new Set([match.strikerId, match.nonStrikerId]);
     const available = team.players.filter(p => !usedIds.has(p.id));
 
-    if (available.length === 0) {
-      // No batsman left — restart with proper Fisher-Yates shuffle
-      const shuffled = [...team.players];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      return shuffled[0]?.id || null;
+    if (available.length > 0) {
+      return available[Math.floor(Math.random() * available.length)].id;
     }
-    return available[Math.floor(Math.random() * available.length)]?.id || null;
+
+    // All players used — pick any player that is NOT the non-striker
+    const fallback = team.players.filter(p => p.id !== match.nonStrikerId);
+    if (fallback.length > 0) {
+      return fallback[Math.floor(Math.random() * fallback.length)].id;
+    }
+
+    // Only one player exists (edge case)
+    return team.players[0]?.id || null;
   };
 
   const getNextBowler = (match: MatchState): string | null => {
@@ -659,23 +662,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       };
 
       // Get next batsman to replace striker (new batter comes to strike directly)
-      // Ensure new batsman is always different from current non-striker
-      const team = prev.battingTeam === 'A' ? prev.teamA : prev.teamB;
-      const usedIds = new Set([prev.strikerId, prev.nonStrikerId]);
-      const available = team.players.filter(p => !usedIds.has(p.id));
-      
-      let nextBatsman: string | null = null;
-      if (available.length > 0) {
-        nextBatsman = available[Math.floor(Math.random() * available.length)].id;
-      } else {
-        // No batsman left — restart with proper Fisher-Yates shuffle
-        const shuffled = [...team.players];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        nextBatsman = shuffled[0]?.id || null;
-      }
+      // getNextBatsman guarantees the result is different from nonStrikerId
+      const nextBatsman = getNextBatsman(prev);
 
       let strikerId = nextBatsman;
       let nonStrikerId = prev.nonStrikerId;
@@ -734,21 +722,37 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       // Restore status to live if it was ended or inningsBreak due to this ball
       const newStatus = (prev.status === 'ended' || prev.status === 'inningsBreak') ? 'live' : prev.status;
 
-      // Reverse striker/non-striker swaps that happened on that ball
-      let restoredStrikerId = prev.strikerId;
-      let restoredNonStrikerId = prev.nonStrikerId;
+      let restoredStrikerId: string | null;
+      let restoredNonStrikerId: string | null;
 
-      // Check if odd runs caused a swap (need to reverse it)
-      if (!lastEvent.isOut && lastEvent.deliveryType === 'normal' && lastEvent.runs % 2 === 1) {
-        // Odd runs caused a swap, reverse it
-        [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
-      }
+      if (lastEvent.isOut) {
+        // Undo an out: restore the original batsman who was out to strike
+        // The batsmanId in the event is who was batting (i.e., the one who got out)
+        restoredStrikerId = lastEvent.batsmanId;
+        restoredNonStrikerId = prev.nonStrikerId;
+      } else if (lastEvent.deliveryType !== 'normal') {
+        // Extras (no-ball/wide) don't cause swaps
+        restoredStrikerId = prev.strikerId;
+        restoredNonStrikerId = prev.nonStrikerId;
+      } else {
+        // Normal delivery: reverse swaps that happened
+        restoredStrikerId = prev.strikerId;
+        restoredNonStrikerId = prev.nonStrikerId;
 
-      // If it was end of over (current balls=0 means we advanced past over boundary)
-      // the end-of-over swap happened, reverse it
-      if (balls === 5 && overs < currentScore.overs) {
-        // Ball was the last of an over — end-of-over swap happened, reverse it
-        [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
+        // Was it last ball of an over? (current balls=0 means over boundary was crossed)
+        const wasEndOfOver = balls === 5 && overs < currentScore.overs;
+
+        if (wasEndOfOver && lastEvent.runs % 2 === 1) {
+          // Odd runs + end of over = two swaps happened (cancel out), so no net swap to reverse
+          // Positions are already correct
+        } else if (wasEndOfOver) {
+          // Even runs + end of over = only end-of-over swap happened, reverse it
+          [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
+        } else if (lastEvent.runs % 2 === 1) {
+          // Odd runs mid-over = one swap happened, reverse it
+          [restoredStrikerId, restoredNonStrikerId] = [restoredNonStrikerId, restoredStrikerId];
+        }
+        // Even runs mid-over = no swap, nothing to reverse
       }
 
       return {
