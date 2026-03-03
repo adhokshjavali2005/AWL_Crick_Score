@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import AdminOnly from '@/components/AdminOnly';
 import ScoreBoard from '@/components/ScoreBoard';
 import ScoreButton from '@/components/ScoreButton';
-import { Undo2, StopCircle, Trophy } from 'lucide-react';
+import { Undo2, Trophy } from 'lucide-react';
 
 const ScoringPanelContent = () => {
-  const { match, addRuns, recordOut, undoLast, endMatch, swapInnings } = useMatch();
+  const { match, addRuns, recordOut, undoLast, swapInnings } = useMatch();
   const navigate = useNavigate();
   const { currentBattingScore, currentBowlingScore } = useMatch();
   const disabled = match.status !== 'live';
@@ -32,11 +32,6 @@ const ScoringPanelContent = () => {
       </div>
     );
   }
-
-  const handleEndMatch = () => {
-    endMatch();
-    navigate('/summary');
-  };
 
   if (match.status === 'inningsBreak') {
     return (
@@ -179,8 +174,8 @@ const ScoringPanelContent = () => {
             </button>
           </div>
 
-          {/* Undo + End Match */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Undo */}
+          <div className="grid grid-cols-1 gap-2">
             <button
               onClick={undoLast}
               disabled={match.ballEvents.length === 0}
@@ -188,13 +183,6 @@ const ScoringPanelContent = () => {
             >
               <Undo2 className="w-4 h-4" />
               Undo Last
-            </button>
-            <button
-              onClick={handleEndMatch}
-              className="flex items-center justify-center gap-2 py-3 rounded-xl bg-destructive/10 text-destructive text-sm font-medium hover:bg-destructive/20 transition-colors"
-            >
-              <StopCircle className="w-4 h-4" />
-              End Match
             </button>
           </div>
         </div>
