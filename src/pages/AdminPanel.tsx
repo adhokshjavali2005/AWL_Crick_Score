@@ -186,11 +186,21 @@ const AdminPanelContent = () => {
       <div className="glass-card p-4">
         <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">Match Control</p>
         <div className="flex gap-2 flex-wrap">
-          {(match.status === 'setup' || match.status === 'paused') && (
-            <button onClick={startMatch} className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/80 transition-all">
-              <Play className="w-5 h-5" /> Start Match
-            </button>
-          )}
+          {(match.status === 'setup' || match.status === 'paused') && (() => {
+            const canStart = match.teamA.players.length >= 2 && match.teamB.players.length >= 2;
+            return canStart ? (
+              <button onClick={startMatch} className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/80 transition-all">
+                <Play className="w-5 h-5" /> Start Match
+              </button>
+            ) : (
+              <span
+                className="flex items-center gap-2 px-4 py-3 rounded-lg bg-primary/40 text-primary-foreground/50 text-sm font-semibold cursor-not-allowed"
+                title="Add at least 2 players to each team"
+              >
+                <Play className="w-5 h-5" /> Start Match
+              </span>
+            );
+          })()}
           {match.status === 'live' && (
             <button onClick={pauseMatch} className="flex items-center gap-2 px-4 py-3 rounded-lg bg-accent text-accent-foreground text-sm font-semibold hover:bg-accent/80 transition-all">
               <Pause className="w-5 h-5" /> Pause
