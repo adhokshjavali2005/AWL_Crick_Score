@@ -12,6 +12,7 @@ export function getSocket(): Socket {
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      transports: ['websocket', 'polling'], // prefer websocket for lower latency
     });
 
     socket.on('connect', () => {
@@ -37,6 +38,11 @@ export function joinMatch(matchId: string) {
 export function leaveMatch(matchId: string) {
   const s = getSocket();
   s.emit('leave-match', matchId);
+}
+
+export function emitMatchUpdate(matchId: string, state: unknown) {
+  const s = getSocket();
+  s.emit('client-match-update', { matchId, state });
 }
 
 export function onMatchUpdate(callback: (data: { matchId: string; state: unknown }) => void) {

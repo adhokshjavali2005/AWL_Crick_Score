@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { createMatchAPI, updateMatchAPI, fetchMatch, fetchMatches, fetchTeamNames, fetchTeamPlayers, saveTeamPlayersAPI } from '@/lib/api';
-import { joinMatch, leaveMatch, onMatchUpdate, onMatchesUpdated } from '@/lib/socket';
+import { joinMatch, leaveMatch, onMatchUpdate, onMatchesUpdated, emitMatchUpdate } from '@/lib/socket';
 
 export interface Player {
   id: string;
@@ -175,6 +175,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const prevMatchIdRef = useRef<string>(match.id);
   const matchIdRef = useRef<string>(match.id);
   const isAdminRef = useRef<boolean>(false);
+  const versionRef = useRef<number>(0);  // local state version to avoid JSON.stringify comparison
 
   // Keep refs in sync
   useEffect(() => {
@@ -199,16 +200,21 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
-    // Debounced API sync (300ms) — only if match has an id and admins
+    // Debounced API sync (100ms) — only if match has an id and admins
     if (match.id && match.admins.length > 0) {
+      versionRef.current += 1;
+
+      // Instant socket push — spectators see it immediately, no API round-trip needed
+      emitMatchUpdate(match.id, match);
+
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(() => {
         updateMatchAPI(match.id, match).then(() => {
-          console.log('[CricLive] Synced match to API:', match.id, 'status:', match.status, 'scoreA:', match.scoreA.runs);
+          console.log('[CricLive] Synced match to API:', match.id, 'score:', match.scoreA.runs + '/' + match.scoreA.overs + '.' + match.scoreA.balls);
         }).catch((err) => {
           console.error('[CricLive] API sync failed:', err);
         });
-      }, 300);
+      }, 100);
     }
 
     return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
@@ -226,16 +232,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const unsubUpdate = onMatchUpdate((data: { matchId: string; state: unknown }) => {
-      if (data.matchId === match.id) {
-        // Only apply remote update if we're not the admin (avoids echo)
+      if (data.matchId === match.id && !isAdminRef.current) {
+        // Only apply remote update if we're a spectator (not admin)
         const remoteState = data.state as MatchState;
-        setMatch(prev => {
-          // Don't overwrite our own changes — check if the update is newer
-          if (JSON.stringify(prev) !== JSON.stringify(remoteState)) {
-            return remoteState;
-          }
-          return prev;
-        });
+        setMatch(remoteState);
+        console.log('[CricLive] Socket update received — score:', remoteState.scoreA?.runs + '/' + remoteState.scoreA?.overs + '.' + remoteState.scoreA?.balls);
       }
     });
 
@@ -268,9 +269,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       console.error('[CricLive] Initial fetch failed:', err);
     });
 
-    // Poll every 5s as fallback for Socket.io
+    // Poll every 2s as fallback for Socket.io
     const interval = setInterval(() => {
-      // Refresh all matches
+      // Refresh all matches list (for LiveMatches page)
       fetchMatches().then(matches => {
         const states = matches.map((m: { state: MatchState }) => m.state);
         setAllMatches(states);
@@ -279,22 +280,17 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         console.error('[CricLive] Poll fetch failed:', err);
       });
 
-      // Refresh current match for spectators (non-admins)
+      // Refresh current match for spectators (non-admins) — direct fetch is fastest fallback
       const currentId = matchIdRef.current;
       if (currentId && !isAdminRef.current) {
         fetchMatch(currentId).then(remoteState => {
-          setMatch(prev => {
-            const remote = remoteState as MatchState;
-            if (JSON.stringify(prev) !== JSON.stringify(remote)) {
-              return remote;
-            }
-            return prev;
-          });
+          const remote = remoteState as MatchState;
+          setMatch(remote);
         }).catch((err) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
       }
-    }, 5000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
