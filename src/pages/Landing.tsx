@@ -4,8 +4,14 @@ import { useMatch } from '@/contexts/MatchContext';
 import { ArrowRight, Radio, Plus, Eye } from 'lucide-react';
 
 const Landing = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const { match } = useMatch();
+
+  if (loading) return (
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] cricket-gradient flex flex-col items-center justify-center px-4 py-12">

@@ -5,7 +5,7 @@ import { useMatch } from '@/contexts/MatchContext';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 
 const CreateMatch = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const { createMatch, addAdmin, getAllTeamNames } = useMatch();
   const navigate = useNavigate();
   const [teamAName, setTeamAName] = useState('');
@@ -26,6 +26,11 @@ const CreateMatch = () => {
     team.toLowerCase().includes(teamBName.toLowerCase())
   );
 
+  if (loading) return (
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const handleCreateMatch = () => {

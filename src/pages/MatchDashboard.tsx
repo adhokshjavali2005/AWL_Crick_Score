@@ -6,7 +6,7 @@ import ScoreBoard from '@/components/ScoreBoard';
 import { Plus, ClipboardList, Eye, Trophy, Zap } from 'lucide-react';
 
 const MatchDashboard = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const { match, createMatch, addAdmin, startSuperOver } = useMatch();
   const isMatchAdmin = useMatchAdmin();
   const navigate = useNavigate();
@@ -14,6 +14,11 @@ const MatchDashboard = () => {
   const [teamBName, setTeamBName] = useState('');
   const [showCreate, setShowCreate] = useState(false);
 
+  if (loading) return (
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   const handleCreateMatch = () => {
