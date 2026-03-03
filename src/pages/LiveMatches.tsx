@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useMatch } from '@/contexts/MatchContext';
-import { ArrowLeft, Radio, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Radio, RefreshCw, Trophy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const LiveMatches = () => {
@@ -16,11 +16,11 @@ const LiveMatches = () => {
   }, [allMatches]);
 
   const liveMatches = allMatches.filter(
-    m => m.status === 'live' || m.status === 'inningsBreak' || m.status === 'setup' || m.status === 'paused'
+    m => m.status === 'live' || m.status === 'inningsBreak' || m.status === 'setup' || m.status === 'paused' || m.status === 'ended'
   );
 
-  // Sort: live first, then innings break, then paused, then setup
-  const statusOrder: Record<string, number> = { live: 0, inningsBreak: 1, paused: 2, setup: 3 };
+  // Sort: live first, then innings break, then paused, then ended, then setup
+  const statusOrder: Record<string, number> = { live: 0, inningsBreak: 1, paused: 2, ended: 3, setup: 4 };
   const sortedMatches = [...liveMatches].sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
 
   const handleViewMatch = (matchId: string) => {
@@ -74,14 +74,17 @@ const LiveMatches = () => {
                     m.status === 'live' ? 'live-pulse pl-4 text-live' : 
                     m.status === 'inningsBreak' ? 'text-yellow-400' :
                     m.status === 'paused' ? 'text-muted-foreground' :
+                    m.status === 'ended' ? 'text-primary' :
                     'text-blue-400'
                   }`}>
                     {m.status === 'live' ? 'Live' : 
                      m.status === 'inningsBreak' ? 'Innings Break' :
                      m.status === 'paused' ? 'Paused' :
+                     m.status === 'ended' ? 'Ended' :
                      'Setting Up'}
                   </span>
                   {m.status === 'live' && <Radio className="w-4 h-4 text-live animate-pulse" />}
+                  {m.status === 'ended' && <Trophy className="w-4 h-4 text-primary" />}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-foreground">{m.teamA.name || 'Team A'}</span>
@@ -95,8 +98,17 @@ const LiveMatches = () => {
                     {m.scoreB.runs}/{m.scoreB.overs}.{m.scoreB.balls}
                   </span>
                 </div>
-                {m.currentInnings === 2 && (
+                {m.currentInnings === 2 && m.status !== 'ended' && (
                   <p className="text-xs text-muted-foreground mt-1">2nd Innings</p>
+                )}
+                {m.status === 'ended' && (
+                  <p className="text-xs font-medium mt-2 text-primary">
+                    {m.scoreA.runs > m.scoreB.runs
+                      ? `🏆 ${m.teamA.name || 'Team A'} won by ${m.scoreA.runs - m.scoreB.runs} runs`
+                      : m.scoreB.runs > m.scoreA.runs
+                      ? `🏆 ${m.teamB.name || 'Team B'} won by ${m.scoreB.runs - m.scoreA.runs} runs`
+                      : '🤝 Match Tied'}
+                  </p>
                 )}
               </button>
             ))}

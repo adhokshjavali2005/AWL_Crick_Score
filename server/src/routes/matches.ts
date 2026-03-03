@@ -14,7 +14,7 @@ router.get('/', optionalAuth, async (_req: Request, res: Response) => {
   try {
     const matches = await prisma.match.findMany({
       where: {
-        status: { in: ['setup', 'live', 'paused', 'inningsBreak'] },
+        status: { in: ['setup', 'live', 'paused', 'inningsBreak', 'ended'] },
       },
       orderBy: { updatedAt: 'desc' },
       select: {
