@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMatch } from '@/contexts/MatchContext';
 import { useNavigate } from 'react-router-dom';
 import AdminOnly from '@/components/AdminOnly';
@@ -14,7 +15,14 @@ const ScoringPanelContent = () => {
   // Calculate target: first innings score + 1 (bowling team scored in 1st innings)
   const target = match.currentInnings === 2 ? currentBowlingScore.runs + 1 : null;
 
-  // Redirect to admin if match isn't in a scorable state
+  // Auto-redirect to summary when match ends
+  useEffect(() => {
+    if (match.status === 'ended') {
+      navigate('/summary', { replace: true });
+    }
+  }, [match.status, navigate]);
+
+  if (match.status === 'ended') return null;
   if (match.status !== 'live' && match.status !== 'inningsBreak') {
     return (
       <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4">
