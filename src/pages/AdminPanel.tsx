@@ -22,6 +22,7 @@ const AdminPanelContent = () => {
   const [adminEmail, setAdminEmail] = useState('');
   const [adminMsg, setAdminMsg] = useState('');
   const [battingFirst, setBattingFirst] = useState<'A' | 'B'>('A');
+  const [oversInput, setOversInput] = useState<string>(String(match.totalOvers));
 
   const handleCreateMatch = () => {
     if (teamAName && teamBName) {
@@ -85,10 +86,22 @@ const AdminPanelContent = () => {
               type="number"
               min={1}
               max={50}
-              value={match.totalOvers}
+              value={oversInput}
               onChange={e => {
-                const val = Math.min(50, Math.max(1, Number(e.target.value)));
-                if (!isNaN(val)) setTotalOvers(val);
+                const raw = e.target.value;
+                setOversInput(raw);
+                const val = Number(raw);
+                if (raw !== '' && !isNaN(val) && val >= 1 && val <= 50) setTotalOvers(val);
+              }}
+              onBlur={() => {
+                if (oversInput === '' || isNaN(Number(oversInput)) || Number(oversInput) < 1) {
+                  setOversInput('1');
+                  setTotalOvers(1);
+                } else {
+                  const clamped = Math.min(50, Math.max(1, Number(oversInput)));
+                  setOversInput(String(clamped));
+                  setTotalOvers(clamped);
+                }
               }}
               className="w-full px-4 py-3 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
               placeholder="Enter overs (1-50)"
@@ -208,10 +221,22 @@ const AdminPanelContent = () => {
               type="number"
               min={1}
               max={50}
-              value={match.totalOvers}
+              value={oversInput}
               onChange={e => {
-                const val = Math.min(50, Math.max(1, Number(e.target.value)));
-                if (!isNaN(val)) setTotalOvers(val);
+                const raw = e.target.value;
+                setOversInput(raw);
+                const val = Number(raw);
+                if (raw !== '' && !isNaN(val) && val >= 1 && val <= 50) setTotalOvers(val);
+              }}
+              onBlur={() => {
+                if (oversInput === '' || isNaN(Number(oversInput)) || Number(oversInput) < 1) {
+                  setOversInput('1');
+                  setTotalOvers(1);
+                } else {
+                  const clamped = Math.min(50, Math.max(1, Number(oversInput)));
+                  setOversInput(String(clamped));
+                  setTotalOvers(clamped);
+                }
               }}
               className="w-28 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
