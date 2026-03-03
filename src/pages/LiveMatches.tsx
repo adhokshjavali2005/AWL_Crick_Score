@@ -102,11 +102,13 @@ const LiveMatches = () => {
                 </div>
                 {/* Scores */}
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-sm text-score">
-                    {m.scoreA.runs}/{m.scoreA.overs}.{m.scoreA.balls}
+                  <span className="text-sm text-score">
+                    <span className="font-bold">{m.scoreA.runs}</span>
+                    <span className="text-xs text-muted-foreground ml-1">({m.scoreA.overs}.{m.scoreA.balls} ov)</span>
                   </span>
-                  <span className="font-mono text-sm text-secondary-foreground">
-                    {m.scoreB.runs}/{m.scoreB.overs}.{m.scoreB.balls}
+                  <span className="text-sm text-secondary-foreground">
+                    <span className="font-bold">{m.scoreB.runs}</span>
+                    <span className="text-xs text-muted-foreground ml-1">({m.scoreB.overs}.{m.scoreB.balls} ov)</span>
                   </span>
                 </div>
                 {m.currentInnings === 2 && m.status !== 'ended' && (
