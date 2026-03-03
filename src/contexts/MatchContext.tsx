@@ -209,21 +209,35 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
     // Sync to API + socket — only for LOCAL changes by admin
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
-      // Instant socket push — spectators see it immediately, no API round-trip needed
-      if (socketTimerRef.current) clearTimeout(socketTimerRef.current);
-      socketTimerRef.current = setTimeout(() => {
-        emitMatchUpdate(match.id, match);
-      }, 50); // 50ms coalesce for rapid clicks
+      const isCriticalChange = match.status === 'ended' || match.status === 'inningsBreak';
 
-      // Debounced API sync (150ms)
+      // Socket push — instant for critical changes, 50ms coalesce for scoring
+      if (socketTimerRef.current) clearTimeout(socketTimerRef.current);
+      if (isCriticalChange) {
+        emitMatchUpdate(match.id, match);
+      } else {
+        socketTimerRef.current = setTimeout(() => {
+          emitMatchUpdate(match.id, match);
+        }, 50);
+      }
+
+      // API sync — instant for critical changes, 150ms debounce for scoring
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(() => {
+      if (isCriticalChange) {
         updateMatchAPI(match.id, match).then(() => {
-          console.log('[CricLive] Synced to API:', match.scoreA.runs + '/' + match.scoreA.overs + '.' + match.scoreA.balls);
+          console.log('[CricLive] Synced to API (critical):', match.status);
         }).catch((err) => {
           console.error('[CricLive] API sync failed:', err);
         });
-      }, 150);
+      } else {
+        syncTimerRef.current = setTimeout(() => {
+          updateMatchAPI(match.id, match).then(() => {
+            console.log('[CricLive] Synced to API:', match.scoreA.runs + '/' + match.scoreA.overs + '.' + match.scoreA.balls);
+          }).catch((err) => {
+            console.error('[CricLive] API sync failed:', err);
+          });
+        }, 150);
+      }
     }
     // Reset the local change flag
     isLocalChangeRef.current = false;

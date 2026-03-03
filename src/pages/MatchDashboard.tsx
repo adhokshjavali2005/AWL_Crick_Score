@@ -171,25 +171,11 @@ const MatchDashboard = () => {
               </button>
             )}
             <Link
-              to="/summary"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-all hover:scale-[1.01] active:scale-95 border border-border/50"
-            >
-              <Trophy className="w-4 h-4" />
-              View Match Summary
-            </Link>
-            <Link
               to="/scorecard"
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-secondary text-secondary-foreground text-sm font-medium hover:bg-secondary/80 transition-all hover:scale-[1.01] active:scale-95 border border-border/50"
             >
               <ClipboardList className="w-4 h-4" />
               View Full Scorecard
-            </Link>
-            <Link
-              to="/create-match"
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 transition-all hover:scale-[1.01] active:scale-95"
-            >
-              <Plus className="w-4 h-4" />
-              New Match
             </Link>
           </div>
         </div>
