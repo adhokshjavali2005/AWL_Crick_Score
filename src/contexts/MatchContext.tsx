@@ -530,11 +530,6 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     return { ...score, balls: newBalls };
   };
 
-  const shouldSwapAfterOver = (score: TeamScore): boolean => {
-    // Swap every 2 overs (at over 2, 4, 6, etc.) when ball count resets
-    return score.balls === 0 && score.overs > 0 && score.overs % 2 === 0;
-  };
-
   const setTotalOvers = useCallback((overs: number) => {
     setMatchLocal(prev => ({ ...prev, totalOvers: overs }));
   }, [setMatchLocal]);
@@ -584,13 +579,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
       }
 
-      // End of over swap
+      // End of over swap — happens after EVERY over
       if (newScore.balls === 0) {
-        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
-      }
-
-      // Every 2 overs auto-swap
-      if (shouldSwapAfterOver(newScore)) {
         [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
       }
 
@@ -641,12 +631,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       let strikerId = nextBatsman;
       let nonStrikerId = prev.nonStrikerId;
 
-      // End of over swap
+      // End of over swap — happens after EVERY over
       if (newScore.balls === 0) {
-        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
-      }
-
-      if (shouldSwapAfterOver(newScore)) {
         [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
       }
 
