@@ -175,7 +175,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const prevMatchIdRef = useRef<string>(match.id);
   const matchIdRef = useRef<string>(match.id);
   const isAdminRef = useRef<boolean>(false);
-  const versionRef = useRef<number>(0);  // local state version to avoid JSON.stringify comparison
+  const isLocalChangeRef = useRef<boolean>(false);  // true when change came from local user action
+  const socketTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Wrapper for setMatch that marks the change as local (from user action)
+  const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
+    isLocalChangeRef.current = true;
+    setMatch(updater);
+  }, []);
 
   // Keep refs in sync
   useEffect(() => {
@@ -200,22 +207,26 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
-    // Debounced API sync (100ms) — only if match has an id and admins
-    if (match.id && match.admins.length > 0) {
-      versionRef.current += 1;
-
+    // Sync to API + socket — only for LOCAL changes by admin
+    if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
       // Instant socket push — spectators see it immediately, no API round-trip needed
-      emitMatchUpdate(match.id, match);
+      if (socketTimerRef.current) clearTimeout(socketTimerRef.current);
+      socketTimerRef.current = setTimeout(() => {
+        emitMatchUpdate(match.id, match);
+      }, 50); // 50ms coalesce for rapid clicks
 
+      // Debounced API sync (150ms)
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       syncTimerRef.current = setTimeout(() => {
         updateMatchAPI(match.id, match).then(() => {
-          console.log('[CricLive] Synced match to API:', match.id, 'score:', match.scoreA.runs + '/' + match.scoreA.overs + '.' + match.scoreA.balls);
+          console.log('[CricLive] Synced to API:', match.scoreA.runs + '/' + match.scoreA.overs + '.' + match.scoreA.balls);
         }).catch((err) => {
           console.error('[CricLive] API sync failed:', err);
         });
-      }, 100);
+      }, 150);
     }
+    // Reset the local change flag
+    isLocalChangeRef.current = false;
 
     return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
   }, [match]);
@@ -385,7 +396,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, [allMatches]);
 
   const addPlayer = useCallback((team: 'A' | 'B', name: string) => {
-    setMatch(prev => {
+    setMatchLocal(prev => {
       const key = team === 'A' ? 'teamA' : 'teamB';
       const teamName = prev[key].name;
       const newPlayer = { id: crypto.randomUUID(), name };
@@ -405,7 +416,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const removePlayer = useCallback((team: 'A' | 'B', playerId: string) => {
-    setMatch(prev => {
+    setMatchLocal(prev => {
       const key = team === 'A' ? 'teamA' : 'teamB';
       const teamName = prev[key].name;
       const updatedPlayers = prev[key].players.filter(p => p.id !== playerId);
@@ -424,28 +435,28 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const setBattingTeam = useCallback((team: 'A' | 'B') => {
-    setMatch(prev => ({ ...prev, battingTeam: team, strikerId: null, nonStrikerId: null, bowlerId: null }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, battingTeam: team, strikerId: null, nonStrikerId: null, bowlerId: null }));
+  }, [setMatchLocal]);
 
   const setStriker = useCallback((playerId: string) => {
-    setMatch(prev => ({ ...prev, strikerId: playerId }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, strikerId: playerId }));
+  }, [setMatchLocal]);
 
   const setNonStriker = useCallback((playerId: string) => {
-    setMatch(prev => ({ ...prev, nonStrikerId: playerId }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, nonStrikerId: playerId }));
+  }, [setMatchLocal]);
 
   const setBowler = useCallback((playerId: string) => {
-    setMatch(prev => ({ ...prev, bowlerId: playerId }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, bowlerId: playerId }));
+  }, [setMatchLocal]);
 
   const swapStriker = useCallback(() => {
-    setMatch(prev => ({
+    setMatchLocal(prev => ({
       ...prev,
       strikerId: prev.nonStrikerId,
       nonStrikerId: prev.strikerId,
     }));
-  }, []);
+  }, [setMatchLocal]);
 
   const getNextBatsman = (match: MatchState): string | null => {
     const team = match.battingTeam === 'A' ? match.teamA : match.teamB;
@@ -474,11 +485,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setTotalOvers = useCallback((overs: number) => {
-    setMatch(prev => ({ ...prev, totalOvers: overs }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, totalOvers: overs }));
+  }, [setMatchLocal]);
 
   const addRuns = useCallback((runs: number, deliveryType: DeliveryType = 'normal') => {
-    setMatch(prev => {
+    setMatchLocal(prev => {
       if (prev.status !== 'live') return prev;
 
       const scoreKey = prev.battingTeam === 'A' ? 'scoreA' : 'scoreB';
@@ -562,7 +573,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const recordOut = useCallback(() => {
-    setMatch(prev => {
+    setMatchLocal(prev => {
       if (prev.status !== 'live') return prev;
 
       const scoreKey = prev.battingTeam === 'A' ? 'scoreA' : 'scoreB';
@@ -616,7 +627,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const undoLast = useCallback(() => {
-    setMatch(prev => {
+    setMatchLocal(prev => {
       if (prev.ballEvents.length === 0) return prev;
 
       const events = [...prev.ballEvents];
@@ -667,30 +678,30 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const startMatch = useCallback(() => {
-    setMatch(prev => ({ ...prev, status: 'live' }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, status: 'live' }));
+  }, [setMatchLocal]);
 
   const pauseMatch = useCallback(() => {
-    setMatch(prev => ({ ...prev, status: prev.status === 'live' ? 'paused' : 'live' }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, status: prev.status === 'live' ? 'paused' : 'live' }));
+  }, [setMatchLocal]);
 
   const endMatch = useCallback(() => {
-    setMatch(prev => ({ ...prev, status: 'ended' }));
-  }, []);
+    setMatchLocal(prev => ({ ...prev, status: 'ended' }));
+  }, [setMatchLocal]);
 
   const addAdmin = useCallback((userId: string) => {
-    setMatch(prev => ({
+    setMatchLocal(prev => ({
       ...prev,
       admins: prev.admins.includes(userId) ? prev.admins : [...prev.admins, userId],
     }));
-  }, []);
+  }, [setMatchLocal]);
 
   const resetMatch = useCallback(() => {
-    setMatch({ ...initialMatch });
-  }, []);
+    setMatchLocal({ ...initialMatch });
+  }, [setMatchLocal]);
 
   const swapInnings = useCallback(() => {
-    setMatch(prev => ({
+    setMatchLocal(prev => ({
       ...prev,
       status: 'live',
       battingTeam: prev.battingTeam === 'A' ? 'B' : 'A',
@@ -705,7 +716,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const startSuperOver = useCallback(() => {
-    setMatch(prev => {
+    setMatchLocal(prev => {
       const isFirstSuperOver = !prev.isSuperOver;
       
       if (isFirstSuperOver) {
