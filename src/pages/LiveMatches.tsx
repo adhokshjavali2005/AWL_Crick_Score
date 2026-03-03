@@ -86,14 +86,25 @@ const LiveMatches = () => {
                   {m.status === 'live' && <Radio className="w-4 h-4 text-live animate-pulse" />}
                   {m.status === 'ended' && <Trophy className="w-4 h-4 text-primary" />}
                 </div>
+                {/* Team names with vs animation */}
+                <div className="flex items-center justify-center gap-2 my-2">
+                  <span className="text-base font-bold text-foreground truncate max-w-[40%] text-right animate-fade-in"
+                    style={{ animationDelay: '80ms', animationFillMode: 'both' }}>
+                    {m.teamA.name || 'Team A'}
+                  </span>
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-primary animate-pulse px-1.5 py-0.5 rounded-md bg-primary/10">
+                    vs
+                  </span>
+                  <span className="text-base font-bold text-foreground truncate max-w-[40%] text-left animate-fade-in"
+                    style={{ animationDelay: '160ms', animationFillMode: 'both' }}>
+                    {m.teamB.name || 'Team B'}
+                  </span>
+                </div>
+                {/* Scores */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{m.teamA.name || 'Team A'}</span>
                   <span className="font-mono text-sm text-score">
                     {m.scoreA.runs}/{m.scoreA.overs}.{m.scoreA.balls}
                   </span>
-                </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-sm font-medium text-foreground">{m.teamB.name || 'Team B'}</span>
                   <span className="font-mono text-sm text-secondary-foreground">
                     {m.scoreB.runs}/{m.scoreB.overs}.{m.scoreB.balls}
                   </span>
