@@ -15,15 +15,9 @@ const ScoringPanelContent = () => {
   // Calculate target: first innings score + 1 (bowling team scored in 1st innings)
   const target = match.currentInnings === 2 ? currentBowlingScore.runs + 1 : null;
 
-  // Auto-redirect to summary when match ends
-  useEffect(() => {
-    if (match.status === 'ended') {
-      navigate('/summary', { replace: true });
-    }
-  }, [match.status, navigate]);
+  // Remove auto-redirect - let user undo if needed
 
-  if (match.status === 'ended') return null;
-  if (match.status !== 'live' && match.status !== 'inningsBreak') {
+  if (match.status !== 'live' && match.status !== 'inningsBreak' && match.status !== 'ended') {
     return (
       <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4">
         <div className="text-center space-y-4 animate-fade-in">
@@ -87,6 +81,55 @@ const ScoringPanelContent = () => {
             <Undo2 className="w-4 h-4" />
             Undo Last Ball
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (match.status === 'ended') {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-sm w-full animate-fade-in">
+          <div className="text-6xl animate-scale-in">🏆</div>
+          <div>
+            <h2 className="text-2xl font-bold text-primary mb-2">Match Ended</h2>
+            <p className="text-sm text-muted-foreground">
+              The match has concluded. Review the summary or undo the last ball if needed.
+            </p>
+          </div>
+
+          <div className="glass-card p-6 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">{match.teamA.name || 'Team A'}</span>
+              <span className="text-2xl font-bold text-foreground">
+                {match.scoreA.runs} ({match.scoreA.overs}.{match.scoreA.balls} ov)
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">{match.teamB.name || 'Team B'}</span>
+              <span className="text-2xl font-bold text-foreground">
+                {match.scoreB.runs} ({match.scoreB.overs}.{match.scoreB.balls} ov)
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <button
+              onClick={() => navigate('/summary')}
+              className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all hover:scale-105 active:scale-95"
+            >
+              <Trophy className="w-4 h-4" />
+              View Summary
+            </button>
+            <button
+              onClick={undoLast}
+              disabled={match.ballEvents.length === 0}
+              className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Undo2 className="w-4 h-4" />
+              Undo Last Ball
+            </button>
+          </div>
         </div>
       </div>
     );
