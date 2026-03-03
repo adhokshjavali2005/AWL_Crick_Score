@@ -625,16 +625,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         ball: currentScore.balls,
       };
 
-      // Get next batsman to replace striker
+      // Get next batsman to replace striker (new batter comes to strike directly)
       const nextBatsman = getNextBatsman(prev);
 
       let strikerId = nextBatsman;
       let nonStrikerId = prev.nonStrikerId;
 
-      // End of over swap — happens after EVERY over
-      if (newScore.balls === 0) {
-        [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
-      }
+      // NOTE: No end-of-over swap here. New batsman is already at strike position.
+      // Normal end-of-over swap only happens in addRuns, not after an out.
 
       // Auto-end innings or match if totalOvers reached
       let newStatus: MatchStatus = prev.status;
