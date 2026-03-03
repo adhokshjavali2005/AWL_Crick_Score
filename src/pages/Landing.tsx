@@ -4,7 +4,7 @@ import { useMatch } from '@/contexts/MatchContext';
 import { ArrowRight, Radio, Plus, Eye } from 'lucide-react';
 
 const Landing = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const { match } = useMatch();
 
   if (loading) return (
@@ -22,6 +22,9 @@ const Landing = () => {
           </div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight">CricLive</h1>
           <p className="text-muted-foreground text-sm">Live Cricket Score Monitor</p>
+          {isAuthenticated && user && (
+            <p className="text-base font-medium text-primary mt-1">Welcome, {user.name}! 👋</p>
+          )}
         </div>
 
 
