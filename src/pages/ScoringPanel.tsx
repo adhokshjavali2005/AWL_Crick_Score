@@ -14,6 +14,23 @@ const ScoringPanelContent = () => {
   // Calculate target: first innings score + 1 (bowling team scored in 1st innings)
   const target = match.currentInnings === 2 ? currentBowlingScore.runs + 1 : null;
 
+  // Redirect to admin if match isn't in a scorable state
+  if (match.status !== 'live' && match.status !== 'inningsBreak') {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4">
+        <div className="text-center space-y-4 animate-fade-in">
+          <p className="text-muted-foreground text-sm">No active match to score.</p>
+          <button
+            onClick={() => navigate('/admin')}
+            className="px-5 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+          >
+            Go to Admin Panel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const handleEndMatch = () => {
     endMatch();
     navigate('/summary');
