@@ -757,6 +757,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         [scoreKey]: { runs, overs, balls },
         strikerId: restoredStrikerId,
         nonStrikerId: restoredNonStrikerId,
+        bowlerId: lastEvent.bowlerId, // Restore the bowler who bowled this ball
         ballEvents: events,
       };
     });
