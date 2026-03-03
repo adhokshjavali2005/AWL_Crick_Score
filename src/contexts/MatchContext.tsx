@@ -258,9 +258,20 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const unsubUpdate = onMatchUpdate((data: { matchId: string; state: unknown }) => {
+      const remoteState = data.state as MatchState;
+
+      // Update allMatches instantly (for LiveMatches page)
+      setAllMatches(prev => {
+        const idx = prev.findIndex(m => m.id === data.matchId);
+        if (idx === -1) return prev;
+        const updated = [...prev];
+        updated[idx] = remoteState;
+        saveAllMatches(updated);
+        return updated;
+      });
+
+      // Update current match for spectators (not admin)
       if (data.matchId === match.id && !isAdminRef.current) {
-        // Only apply remote update if we're a spectator (not admin)
-        const remoteState = data.state as MatchState;
         lastSocketUpdateRef.current = Date.now();
         setMatch(remoteState);
         console.log('[CricLive] Socket update received — score:', remoteState.scoreA?.runs + '/' + remoteState.scoreA?.overs + '.' + remoteState.scoreA?.balls);
@@ -296,7 +307,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       console.error('[CricLive] Initial fetch failed:', err);
     });
 
-    // Poll every 2s as fallback for Socket.io
+    // Poll every 5s as fallback for Socket.io (socket is primary update path now)
     const interval = setInterval(() => {
       // Refresh all matches list (for LiveMatches page)
       fetchMatches().then(matches => {
@@ -319,7 +330,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
       }
-    }, 2000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

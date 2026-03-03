@@ -37,8 +37,8 @@ export function initSocket(server: HTTPServer, frontendUrl: string) {
     // Client-side live update: admin pushes state directly via socket for instant spectator updates
     // This is faster than waiting for the API round-trip
     socket.on('client-match-update', (data: { matchId: string; state: unknown }) => {
-      // Broadcast to everyone else in the room (not back to the sender)
-      socket.to(`match:${data.matchId}`).emit('match-update', { matchId: data.matchId, state: data.state });
+      // Broadcast to ALL other clients (not back to the sender) — covers both room members and LiveMatches viewers
+      socket.broadcast.emit('match-update', { matchId: data.matchId, state: data.state });
     });
 
     socket.on('disconnect', () => {
