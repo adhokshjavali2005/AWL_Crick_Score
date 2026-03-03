@@ -31,8 +31,8 @@ const AppHeader = () => {
     <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md" ref={menuRef}>
       <div className="container flex items-center justify-between h-14 px-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-xs">🏏</span>
+          <div className="w-7 h-7 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
+            <img src="/awl-logo.svg" alt="AWL" className="w-full h-full object-cover" />
           </div>
           <span className="font-semibold text-sm text-foreground">CricLive</span>
         </Link>
