@@ -88,13 +88,13 @@ const LiveMatches = () => {
                 </div>
                 {/* Team names with vs */}
                 <div className="flex items-center justify-center gap-2 my-2">
-                  <span className="text-base font-bold text-foreground truncate max-w-[40%] text-right animate-pulse">
+                  <span className="text-base font-bold text-foreground truncate max-w-[40%] text-right">
                     {m.teamA.name || 'Team A'}
                   </span>
                   <span className="text-xs font-extrabold uppercase tracking-wider text-primary px-1.5 py-0.5 rounded-md bg-primary/10">
                     vs
                   </span>
-                  <span className="text-base font-bold text-foreground truncate max-w-[40%] text-left animate-pulse">
+                  <span className="text-base font-bold text-foreground truncate max-w-[40%] text-left">
                     {m.teamB.name || 'Team B'}
                   </span>
                 </div>
