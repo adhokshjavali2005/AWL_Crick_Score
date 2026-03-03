@@ -176,6 +176,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const matchIdRef = useRef<string>(match.id);
   const isAdminRef = useRef<boolean>(false);
   const isLocalChangeRef = useRef<boolean>(false);  // true when change came from local user action
+  const localStorageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const matchRef = useRef<MatchState>(match); // latest match for deferred operations
   const lastSocketUpdateRef = useRef<number>(0);  // timestamp of last socket update received
 
   // Wrapper for setMatch that marks the change as local (from user action)
@@ -204,19 +206,28 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     isAdminRef.current = user ? match.admins.includes(user.id) : false;
   }, [match.admins, user]);
 
-  // Persist match state to localStorage + debounced API sync
+  // Persist match state to localStorage (debounced) + API sync
   useEffect(() => {
-    localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(match));
+    // Keep ref up to date for deferred operations
+    matchRef.current = match;
 
-    // Update allMatches locally
-    if (match.id) {
-      setAllMatches(prev => {
-        const updated = prev.map(m => m.id === match.id ? match : m);
-        if (!prev.find(m => m.id === match.id)) return prev;
-        saveAllMatches(updated);
-        return updated;
-      });
-    }
+    // Debounce localStorage writes — they block the main thread with JSON.stringify
+    if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
+    localStorageTimerRef.current = setTimeout(() => {
+      localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(matchRef.current));
+
+      // Update allMatches locally (also deferred)
+      if (matchRef.current.id) {
+        setAllMatches(prev => {
+          const idx = prev.findIndex(m => m.id === matchRef.current.id);
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          updated[idx] = matchRef.current;
+          saveAllMatches(updated);
+          return updated;
+        });
+      }
+    }, 50); // 50ms debounce — coalesces rapid clicks
 
     // Sync to API — only for LOCAL changes by admin (socket already emitted in setMatchLocal)
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
@@ -225,6 +236,10 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       // API sync — instant for critical changes, 100ms debounce for scoring
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       if (isCriticalChange) {
+        // Flush localStorage immediately for critical changes
+        if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
+        localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(match));
+
         updateMatchAPI(match.id, match).then(() => {
           console.log('[CricLive] Synced to API (critical):', match.status);
         }).catch((err) => {
@@ -232,8 +247,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         });
       } else {
         syncTimerRef.current = setTimeout(() => {
-          updateMatchAPI(match.id, match).then(() => {
-            console.log('[CricLive] Synced to API:', match.scoreA.runs + '/' + match.scoreA.overs + '.' + match.scoreA.balls);
+          updateMatchAPI(matchRef.current.id, matchRef.current).then(() => {
+            console.log('[CricLive] Synced to API');
           }).catch((err) => {
             console.error('[CricLive] API sync failed:', err);
           });
@@ -243,7 +258,10 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     // Reset the local change flag
     isLocalChangeRef.current = false;
 
-    return () => { if (syncTimerRef.current) clearTimeout(syncTimerRef.current); };
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
+    };
   }, [match]);
 
   // Socket.io: join/leave match room and listen for real-time updates
