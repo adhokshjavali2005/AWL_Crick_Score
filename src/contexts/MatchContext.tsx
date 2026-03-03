@@ -511,8 +511,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     const available = team.players.filter(p => !usedIds.has(p.id));
 
     if (available.length === 0) {
-      // No batsman left — restart in random order (NO ALL-OUT rule)
-      const shuffled = [...team.players].sort(() => Math.random() - 0.5);
+      // No batsman left — restart with proper Fisher-Yates shuffle
+      const shuffled = [...team.players];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
       return shuffled[0]?.id || null;
     }
     return available[Math.floor(Math.random() * available.length)]?.id || null;
