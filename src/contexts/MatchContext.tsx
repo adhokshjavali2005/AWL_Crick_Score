@@ -177,6 +177,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const isAdminRef = useRef<boolean>(false);
   const isLocalChangeRef = useRef<boolean>(false);  // true when change came from local user action
   const socketTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSocketUpdateRef = useRef<number>(0);  // timestamp of last socket update received
 
   // Wrapper for setMatch that marks the change as local (from user action)
   const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
@@ -217,15 +218,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
       const isCriticalChange = match.status === 'ended' || match.status === 'inningsBreak';
 
-      // Socket push — instant for critical changes, 50ms coalesce for scoring
+      // Socket push — always immediate for lowest latency
       if (socketTimerRef.current) clearTimeout(socketTimerRef.current);
-      if (isCriticalChange) {
-        emitMatchUpdate(match.id, match);
-      } else {
-        socketTimerRef.current = setTimeout(() => {
-          emitMatchUpdate(match.id, match);
-        }, 50);
-      }
+      emitMatchUpdate(match.id, match);
 
       // API sync — instant for critical changes, 150ms debounce for scoring
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
@@ -266,6 +261,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       if (data.matchId === match.id && !isAdminRef.current) {
         // Only apply remote update if we're a spectator (not admin)
         const remoteState = data.state as MatchState;
+        lastSocketUpdateRef.current = Date.now();
         setMatch(remoteState);
         console.log('[CricLive] Socket update received — score:', remoteState.scoreA?.runs + '/' + remoteState.scoreA?.overs + '.' + remoteState.scoreA?.balls);
       }
@@ -311,12 +307,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         console.error('[CricLive] Poll fetch failed:', err);
       });
 
-      // Refresh current match for spectators (non-admins) — direct fetch is fastest fallback
+      // Refresh current match for spectators (non-admins) — only if socket hasn't delivered fresh data recently
       const currentId = matchIdRef.current;
-      if (currentId && !isAdminRef.current) {
+      const socketFresh = Date.now() - lastSocketUpdateRef.current < 5000; // socket delivered in last 5s
+      if (currentId && !isAdminRef.current && !socketFresh) {
         fetchMatch(currentId).then(remoteState => {
           const remote = remoteState as MatchState;
           setMatch(remote);
+          console.log('[CricLive] Poll fallback applied — no recent socket data');
         }).catch((err) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
