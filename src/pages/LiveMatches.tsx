@@ -19,8 +19,8 @@ const LiveMatches = () => {
     m => m.status === 'live' || m.status === 'inningsBreak' || m.status === 'setup' || m.status === 'paused' || m.status === 'ended'
   );
 
-  // Sort: live first, then innings break, then paused, then ended, then setup
-  const statusOrder: Record<string, number> = { live: 0, inningsBreak: 1, paused: 2, ended: 3, setup: 4 };
+  // Sort: live first, then innings break, then paused, then setup, then ended
+  const statusOrder: Record<string, number> = { live: 0, inningsBreak: 1, paused: 2, setup: 3, ended: 4 };
   const sortedMatches = [...liveMatches].sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
 
   const handleViewMatch = (matchId: string) => {
