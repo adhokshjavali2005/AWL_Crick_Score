@@ -40,21 +40,6 @@ const MatchSummary = () => {
   // Admin display handled via adminNames state above
   const allPlayers = [...match.teamA.players, ...match.teamB.players];
 
-  const battingOrderNames = match.battingOrder
-    .map(id => allPlayers.find(p => p.id === id)?.name)
-    .filter(Boolean);
-
-  // Derive bowling order
-  const bowlingOrderIds: string[] = [];
-  [...match.firstInningsBallEvents, ...match.ballEvents].forEach(e => {
-    if (e.bowlerId && !bowlingOrderIds.includes(e.bowlerId)) {
-      bowlingOrderIds.push(e.bowlerId);
-    }
-  });
-  const bowlingOrderNames = bowlingOrderIds
-    .map(id => allPlayers.find(p => p.id === id)?.name)
-    .filter(Boolean);
-
   // Group balls by over (6 legal deliveries per over)
   const groupByOvers = (events: BallEvent[]) => {
     const overs: BallEvent[][] = [];
@@ -194,34 +179,6 @@ const MatchSummary = () => {
             </span>
           </div>
         </div>
-
-        {/* Batting Order */}
-        {battingOrderNames.length > 0 && (
-          <div className="glass-card p-4 space-y-2">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Batting Order</p>
-            <div className="flex flex-wrap gap-2">
-              {battingOrderNames.map((name, i) => (
-                <span key={i} className="px-2.5 py-1 rounded-lg bg-secondary text-secondary-foreground text-xs font-medium">
-                  {i + 1}. {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Bowling Order */}
-        {bowlingOrderNames.length > 0 && (
-          <div className="glass-card p-4 space-y-2">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">Bowling Order</p>
-            <div className="flex flex-wrap gap-2">
-              {bowlingOrderNames.map((name, i) => (
-                <span key={i} className="px-2.5 py-1 rounded-lg bg-accent text-accent-foreground text-xs font-medium">
-                  {i + 1}. {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Ball Events by Innings */}
         {match.isSuperOver && (match.mainMatchFirstInnings.length > 0 || match.mainMatchSecondInnings.length > 0) && (
