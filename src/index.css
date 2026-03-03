@@ -73,7 +73,7 @@
 
   .live-pulse::before {
     content: '';
-    @apply absolute -left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full;
+    @apply absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full;
     background: hsl(var(--live));
     animation: pulse-dot 1.5s ease-in-out infinite;
   }

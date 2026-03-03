@@ -71,7 +71,7 @@ const LiveMatches = () => {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className={`text-xs font-semibold uppercase tracking-widest ${
-                    m.status === 'live' ? 'live-pulse pl-4 text-live' : 
+                    m.status === 'live' ? 'live-pulse pl-3 text-live' : 
                     m.status === 'inningsBreak' ? 'text-yellow-400' :
                     m.status === 'paused' ? 'text-muted-foreground' :
                     m.status === 'ended' ? 'text-primary' :
