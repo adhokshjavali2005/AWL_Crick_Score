@@ -5,7 +5,7 @@ import { useMatch, useMatchAdmin, BallEvent } from '@/contexts/MatchContext';
 import { Zap } from 'lucide-react';
 
 const MatchSummary = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const { match, startSuperOver } = useMatch();
   const isMatchAdmin = useMatchAdmin();
   const navigate = useNavigate();
@@ -18,6 +18,11 @@ const MatchSummary = () => {
     setAdminNames(match.admins.map((_, i) => `Admin ${i + 1}`));
   }, [match.admins]);
 
+  if (loading) return (
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   if (match.status === 'idle') {

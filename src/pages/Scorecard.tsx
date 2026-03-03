@@ -26,9 +26,14 @@ interface BowlerStats {
 }
 
 const Scorecard = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
   const { match } = useMatch();
 
+  if (loading) return (
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    </div>
+  );
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   if (match.status === 'idle') {
