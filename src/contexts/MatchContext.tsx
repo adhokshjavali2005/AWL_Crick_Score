@@ -176,16 +176,20 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const matchIdRef = useRef<string>(match.id);
   const isAdminRef = useRef<boolean>(false);
   const isLocalChangeRef = useRef<boolean>(false);  // true when change came from local user action
-  const socketTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSocketUpdateRef = useRef<number>(0);  // timestamp of last socket update received
 
   // Wrapper for setMatch that marks the change as local (from user action)
+  // Also emits socket update SYNCHRONOUSLY (no effect delay) for zero-lag spectator updates
   const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
     isLocalChangeRef.current = true;
     setMatch(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       // Synchronously update isAdminRef so poll/socket guards work immediately
       isAdminRef.current = user ? next.admins.includes(user.id) : false;
+      // Emit socket update immediately (inside setState callback = before next render)
+      if (next.id && next.admins.length > 0) {
+        emitMatchUpdate(next.id, next);
+      }
       return next;
     });
   }, [user]);
@@ -214,15 +218,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       });
     }
 
-    // Sync to API + socket — only for LOCAL changes by admin
+    // Sync to API — only for LOCAL changes by admin (socket already emitted in setMatchLocal)
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
       const isCriticalChange = match.status === 'ended' || match.status === 'inningsBreak';
 
-      // Socket push — always immediate for lowest latency
-      if (socketTimerRef.current) clearTimeout(socketTimerRef.current);
-      emitMatchUpdate(match.id, match);
-
-      // API sync — instant for critical changes, 150ms debounce for scoring
+      // API sync — instant for critical changes, 100ms debounce for scoring
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       if (isCriticalChange) {
         updateMatchAPI(match.id, match).then(() => {
@@ -237,7 +237,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           }).catch((err) => {
             console.error('[CricLive] API sync failed:', err);
           });
-        }, 150);
+        }, 100);
       }
     }
     // Reset the local change flag
