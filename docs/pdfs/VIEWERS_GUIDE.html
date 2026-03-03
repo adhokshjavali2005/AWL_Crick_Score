@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CricLive - Viewer Guide</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: white; padding: 40px; max-width: 1000px; margin: 0 auto; }
+    h1 { color: #1e40af; font-size: 32px; margin: 30px 0 20px 0; border-bottom: 3px solid #1e40af; padding-bottom: 10px; }
+    h2 { color: #1e40af; font-size: 24px; margin: 25px 0 15px 0; border-left: 4px solid #1e40af; padding-left: 15px; }
+    h3 { color: #3b82f6; font-size: 18px; margin: 15px 0 10px 0; }
+    p { margin: 10px 0; text-align: justify; }
+    ul, ol { margin: 15px 0 15px 30px; }
+    li { margin: 8px 0; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    table th { background: #1e40af; color: white; padding: 12px; text-align: left; font-weight: 600; }
+    table td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+    table tr:nth-child(even) { background: #f3f4f6; }
+    table tr:hover { background: #e0e7ff; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 13px; }
+    pre { background: #1f2937; color: #e5e7eb; padding: 15px; border-radius: 5px; overflow-x: auto; margin: 15px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; }
+    pre code { background: none; padding: 0; color: #e5e7eb; }
+    blockquote { border-left: 4px solid #3b82f6; padding-left: 15px; margin: 15px 0; color: #6b7280; font-style: italic; }
+    strong { color: #1e40af; font-weight: 600; }
+    a { color: #1e40af; text-decoration: none; border-bottom: 1px dotted #1e40af; }
+    a:hover { color: #1d3557; border-bottom: 1px solid #1d3557; }
+    hr { border: none; border-top: 2px solid #e5e7eb; margin: 30px 0; }
+    @media print { body { padding: 20px; } h1 { page-break-before: always; } a { border: none; } }
+  </style>
+</head>
+<body>
+  <h1>CricLive - Viewer&#39;s Guide</h1>
+<p><strong>Version:</strong> 1.0<br><strong>Date:</strong> March 3, 2026<br><strong>Application:</strong> CricLive - Live Cricket Score Monitor</p>
+<hr>
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#getting-started">Getting Started</a></li>
+<li><a href="#accessing-live-matches">Accessing Live Matches</a></li>
+<li><a href="#understanding-the-scorecard">Understanding the Scorecard</a></li>
+<li><a href="#live-score-updates">Live Score Updates</a></li>
+<li><a href="#viewing-match-details">Viewing Match Details</a></li>
+<li><a href="#navigating-the-interface">Navigating the Interface</a></li>
+<li><a href="#viewing-team-statistics">Viewing Team Statistics</a></li>
+<li><a href="#match-summary">Match Summary</a></li>
+<li><a href="#browser-requirements">Browser Requirements</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol>
+<hr>
+<h2>Getting Started</h2>
+<h3>What is CricLive?</h3>
+<p>CricLive is a <strong>real-time cricket scoring application</strong> that provides:</p>
+<ul>
+<li><strong>Live ball-by-ball updates</strong> as matches progress</li>
+<li><strong>Detailed player statistics</strong> for batters and bowlers</li>
+<li><strong>Current match state</strong> (score, wickets, overs)</li>
+<li><strong>Instant notifications</strong> when scores change</li>
+<li><strong>Match summary</strong> after the game ends</li>
+</ul>
+<h3>Accessing CricLive</h3>
+<ol>
+<li>Open your web browser (Chrome, Firefox, Safari, Edge)</li>
+<li>Navigate to: <strong><a href="https://criclive-sigma.vercel.app">https://criclive-sigma.vercel.app</a></strong></li>
+<li>You will see the <strong>landing page</strong> with available matches</li>
+<li>Click on any match to start viewing</li>
+</ol>
+<hr>
+<h2>Accessing Live Matches</h2>
+<h3>Landing Page</h3>
+<p>The landing page displays:</p>
+<p><strong>Active/Upcoming Matches:</strong></p>
+<ul>
+<li>Team names (e.g., &quot;Mumbai vs Delhi&quot;)</li>
+<li>Current status (Match ID, date)</li>
+<li>Match format (T20, ODI, etc.)</li>
+<li>Quick statistics</li>
+</ul>
+<p><strong>Search Functionality:</strong></p>
+<ul>
+<li>Search by team name</li>
+<li>Filter by recent matches</li>
+<li>Sort options (date, live first)</li>
+</ul>
+<h3>Selecting a Match</h3>
+<ol>
+<li>Browse the match list</li>
+<li>Click on the team names or match card</li>
+<li>You will enter the <strong>live scoreboard view</strong></li>
+<li>Score updates appear <strong>automatically</strong> (no refresh needed)</li>
+</ol>
+<h3>Match Status Icons</h3>
+<table>
+<thead>
+<tr>
+<th>Icon/Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <strong>LIVE</strong></td>
+<td>Match in progress, live updates</td>
+</tr>
+<tr>
+<td>⏸️ <strong>PAUSED</strong></td>
+<td>Innings break between 1st &amp; 2nd innings</td>
+</tr>
+<tr>
+<td>✅ <strong>ENDED</strong></td>
+<td>Match complete, view summary</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Understanding the Scorecard</h2>
+<h3>Main Scorecard Display</h3>
+<p>The primary scorecard shows:</p>
+<pre><code>┌─────────────────────────────────────┐
+│   TEAM A vs TEAM B                  │
+│   Live Score - Over 12.3            │
+├─────────────────────────────────────┤
+│   TEAM A:  145/6 (12 overs)         │
+│   TEAM B:  On Batting...            │
+├─────────────────────────────────────┤
+│   Latest Scores: 4 runs             │
+│   Bowler: Jasprit Bumrah            │
+│   Striker: Virat Kohli              │
+│   Non-Striker: Suryakumar Yadav     │
+└─────────────────────────────────────┘
+</code></pre>
+<h3>Score Components</h3>
+<p><strong>Score Display:</strong> <code>145/6</code></p>
+<ul>
+<li><strong>145</strong> = Total runs scored</li>
+<li><strong>6</strong> = Wickets lost (6 players out of 11)</li>
+</ul>
+<p><strong>Over Display:</strong> <code>12.3</code></p>
+<ul>
+<li><strong>12</strong> = Complete overs bowled</li>
+<li><strong>3</strong> = Balls in current over (0-5 balls)</li>
+<li>Format: One over = 6 balls</li>
+</ul>
+<p><strong>Extras Information:</strong></p>
+<ul>
+<li>Runs from wides, no-balls, byes, leg-byes</li>
+<li>Shown separately in detailed scorecard</li>
+</ul>
+<h3>Current Match State</h3>
+<p><strong>On Batting:</strong></p>
+<ul>
+<li><strong>Striker</strong> (▶️ symbol) - Currently facing the bowler</li>
+<li><strong>Non-Striker</strong> - Waiting to bat</li>
+<li><strong>Bowler</strong> (current thrower from opposing team)</li>
+</ul>
+<p><strong>Just Completed:</strong></p>
+<ul>
+<li><strong>Latest runs</strong> from last delivery</li>
+<li><strong>Wicket info</strong> if a player got out</li>
+<li><strong>Bowler figures</strong> (runs conceded, wickets)</li>
+</ul>
+<hr>
+<h2>Live Score Updates</h2>
+<h3>How Updates Work</h3>
+<ul>
+<li><strong>Real-time sync</strong> via WebSocket (instant)</li>
+<li><strong>Automatic refresh</strong> if connection drops</li>
+<li><strong>No manual refresh needed</strong> - page updates automatically</li>
+</ul>
+<h3>What Updates in Real-Time</h3>
+<p>✅ <strong>Updates instantly:</strong></p>
+<ul>
+<li>Runs scored (1, 2, 4, 6 runs)</li>
+<li>Wickets falling</li>
+<li>Over count advancing</li>
+<li>Striker/non-striker changes</li>
+<li>Bowler changes</li>
+<li>Current run rate</li>
+</ul>
+<h3>Reading Live Events</h3>
+<p><strong>Delivery Sequence Example:</strong></p>
+<pre><code>Ball 1: Bumrah → Kohli → 1 run (Kohli, Yadav swap positions)
+Ball 2: Bumrah → Yadav → 4 runs (boundary)
+Ball 3: Bumrah → Yadav → OUT (Yadav caught, new batter in)
+Ball 4: Bumrah → Sharma → 2 runs
+Ball 5: Bumrah → Sharma → Wide (no advancement of over count)
+Ball 6: Bumrah → Sharma → No Ball (still ball 5)
+Ball 6 (retry): Bumrah → Sharma → 0 runs (over end, bowler rotates)
+</code></pre>
+<h3>Commentary Section</h3>
+<p><strong>Available Information:</strong></p>
+<ul>
+<li>Ball-by-ball description</li>
+<li>Runs awarded</li>
+<li>Type of dismissal (if out)</li>
+<li>Extras recorded</li>
+</ul>
+<p><strong>Visual Indicators:</strong></p>
+<ul>
+<li>✓ Green bar = Runs scored</li>
+<li>✗ Red icon = Wicket</li>
+<li>⭐ Extra = Wide/No-ball bonus</li>
+</ul>
+<hr>
+<h2>Viewing Match Details</h2>
+<h3>Batting Statistics</h3>
+<p>Click on <strong>&quot;Batting&quot;</strong> tab to see:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Batter Name</strong></td>
+<td>Player name</td>
+</tr>
+<tr>
+<td><strong>Status</strong></td>
+<td>Out/Not Out</td>
+</tr>
+<tr>
+<td><strong>Runs</strong></td>
+<td>Total runs scored</td>
+</tr>
+<tr>
+<td><strong>Balls</strong></td>
+<td>Deliveries faced</td>
+</tr>
+<tr>
+<td><strong>Strike Rate</strong></td>
+<td>Runs per 100 balls</td>
+</tr>
+<tr>
+<td><strong>Fours</strong></td>
+<td>Boundaries hit</td>
+</tr>
+<tr>
+<td><strong>Sixes</strong></td>
+<td>Maximum hits</td>
+</tr>
+<tr>
+<td><strong>How Out</strong></td>
+<td>Dismissal type</td>
+</tr>
+</tbody></table>
+<h3>Bowling Statistics</h3>
+<p>Click on <strong>&quot;Bowling&quot;</strong> tab to see:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Bowler Name</strong></td>
+<td>Player name</td>
+</tr>
+<tr>
+<td><strong>Overs</strong></td>
+<td>Overs completed</td>
+</tr>
+<tr>
+<td><strong>Runs</strong></td>
+<td>Runs conceded</td>
+</tr>
+<tr>
+<td><strong>Wickets</strong></td>
+<td>Dismissals</td>
+</tr>
+<tr>
+<td><strong>Economy</strong></td>
+<td>Runs per over</td>
+</tr>
+<tr>
+<td><strong>Maiden Overs</strong></td>
+<td>Overs with 0 runs</td>
+</tr>
+</tbody></table>
+<h3>Partnerships</h3>
+<p><strong>Partnership Info</strong> shows:</p>
+<ul>
+<li>Current batter partnership runs</li>
+<li>Balls faced together</li>
+<li>Key contributors in stand</li>
+<li>Whether partnership is active or broken</li>
+</ul>
+<h3>Key Moments</h3>
+<p>Recent events:</p>
+<ul>
+<li>Last 5 wickets (who, how, bowler)</li>
+<li>Last 5 boundaries (who, runs)</li>
+<li>Score milestones reached</li>
+<li>Momentum shifts</li>
+</ul>
+<hr>
+<h2>Navigating the Interface</h2>
+<h3>Main Navigation</h3>
+<p><strong>Top Bar:</strong></p>
+<ul>
+<li><strong>CricLive Logo</strong> - Go to home/match list</li>
+<li><strong>Match Selector</strong> - Jump to different matches (if multiple)</li>
+<li><strong>Search</strong> - Find team or player</li>
+<li><strong>Refresh</strong> - Manual sync (rarely needed)</li>
+</ul>
+<p><strong>Score Sections:</strong></p>
+<ul>
+<li><strong>Scorecard</strong> - Current match state (default view)</li>
+<li><strong>Batting Stats</strong> - Individual batter details</li>
+<li><strong>Bowling Stats</strong> - Individual bowler details</li>
+<li><strong>Commentary</strong> - Ball-by-ball narrative</li>
+<li><strong>Summary</strong> - After match ends</li>
+</ul>
+<h3>Responsive Design</h3>
+<p><strong>On Mobile/Tablet:</strong></p>
+<ul>
+<li>Vertical layout optimized for small screens</li>
+<li>Tap/swipe to change sections</li>
+<li>Score updates visible at all times</li>
+</ul>
+<p><strong>On Desktop:</strong></p>
+<ul>
+<li>Horizontal layout with columns</li>
+<li>Wider scorecard view</li>
+<li>Side panels for statistics</li>
+</ul>
+<h3>Switching Views</h3>
+<ol>
+<li><strong>Live/Current</strong>: Shows active match state</li>
+<li><strong>Statistics</strong>: Always available during match</li>
+<li><strong>Summary</strong>: Only after match ends</li>
+<li><strong>Archive</strong>: View past matches (if feature enabled)</li>
+</ol>
+<hr>
+<h2>Viewing Team Statistics</h2>
+<h3>Team Summary During Match</h3>
+<p><strong>Batting Team:</strong></p>
+<ul>
+<li>Total runs</li>
+<li>Wickets down</li>
+<li>Overs completed/remaining</li>
+<li>Run rate (runs per over)</li>
+<li>Projected total (if match ended now)</li>
+</ul>
+<p><strong>Bowling Team:</strong></p>
+<ul>
+<li>Runs conceded</li>
+<li>Wickets taken</li>
+<li>Overs bowled</li>
+<li>Economy rate</li>
+<li>Least runs conceded</li>
+</ul>
+<h3>Comparing Teams</h3>
+<p><strong>Quick Comparison Card:</strong></p>
+<ul>
+<li>Team A runs vs Team B runs</li>
+<li>Wickets down (both teams)</li>
+<li>Fastest bowler (most recent)</li>
+<li>Top scorer (current match)</li>
+</ul>
+<h3>Head-to-Head Information</h3>
+<p>(If available in summary):</p>
+<ul>
+<li>Historical match records</li>
+<li>Win/loss record</li>
+<li>Top scorer in rivalry</li>
+<li>Best bowler in rivalry</li>
+</ul>
+<hr>
+<h2>Match Summary</h2>
+<h3>When is Summary Available?</h3>
+<ul>
+<li><strong>During live match</strong>: Not available (match in progress)</li>
+<li><strong>After match ends</strong>: Automatically generated</li>
+<li><strong>Final view</strong>: Once winner confirmed</li>
+</ul>
+<h3>What Summary Contains</h3>
+<p><strong>Final Scores:</strong></p>
+<pre><code>TEAM A: 165/7 (20 overs)
+TEAM B: 168/5 (19.2 overs)
+TEAM B won by 5 wickets (margin) in 19.2 overs
+</code></pre>
+<p><strong>Top Performers:</strong></p>
+<ul>
+<li>Highest run scorer</li>
+<li>Wicket taker (most)</li>
+<li>Best economy bowler</li>
+<li>Most boundaries hit</li>
+</ul>
+<p><strong>Match Statistics:</strong></p>
+<ul>
+<li>Total runs</li>
+<li>Total wickets</li>
+<li>Extras given</li>
+<li>Maiden overs bowled</li>
+<li>Powerplay dynamics</li>
+</ul>
+<p><strong>Detailed Match Report</strong></p>
+<ul>
+<li>Full scorecard (all players)</li>
+<li>Partnerships (key stands)</li>
+<li>Critical moments</li>
+<li>Umpire decisions (if recorded)</li>
+</ul>
+<h3>Sharing Summary</h3>
+<p><strong>Download PDF:</strong></p>
+<ol>
+<li>Click &quot;Download Summary&quot; button</li>
+<li>Select &quot;Print&quot; → &quot;Save as PDF&quot;</li>
+<li>File saved to downloads folder</li>
+</ol>
+<p><strong>Share Link:</strong></p>
+<ol>
+<li>Copy browser URL</li>
+<li>Share with friends via email/messaging</li>
+<li>Others can view same match summary</li>
+</ol>
+<p><strong>Social Media:</strong>
+(If enabled)</p>
+<ul>
+<li>Tweet match highlights</li>
+<li>Share to social networks</li>
+<li>Embed in website</li>
+</ul>
+<hr>
+<h2>Browser Requirements</h2>
+<h3>Supported Browsers</h3>
+<table>
+<thead>
+<tr>
+<th>Browser</th>
+<th>Version</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Chrome</td>
+<td>90+</td>
+<td>✅ Full support</td>
+</tr>
+<tr>
+<td>Firefox</td>
+<td>88+</td>
+<td>✅ Full support</td>
+</tr>
+<tr>
+<td>Safari</td>
+<td>14+</td>
+<td>✅ Full support</td>
+</tr>
+<tr>
+<td>Edge</td>
+<td>90+</td>
+<td>✅ Full support</td>
+</tr>
+<tr>
+<td>Opera</td>
+<td>76+</td>
+<td>✅ Full support</td>
+</tr>
+</tbody></table>
+<h3>System Requirements</h3>
+<ul>
+<li><strong>Internet Connection:</strong> Required (no offline mode)</li>
+<li><strong>JavaScript:</strong> Must be enabled</li>
+<li><strong>Cookies:</strong> Enabled (for session storage)</li>
+<li><strong>Screen Size:</strong> 320px+ width (mobile-responsive)</li>
+</ul>
+<h3>Browser Settings</h3>
+<p><strong>Enable Notifications (Optional):</strong></p>
+<ol>
+<li>Allow notifications when prompted</li>
+<li>Receive alerts when wickets fall</li>
+<li>Get score update badges</li>
+</ol>
+<p><strong>Disable Blockers (If updates stop):</strong></p>
+<ul>
+<li>Disable ad blockers (may block WebSocket)</li>
+<li>Disable tracking prevention temporarily</li>
+<li>Allow cookies from criclive-sigma.vercel.app</li>
+</ul>
+<hr>
+<h2>Troubleshooting</h2>
+<h3>Common Issues</h3>
+<h4>Scores not updating</h4>
+<ul>
+<li><strong>Check:</strong> Is your internet connection active?</li>
+<li><strong>Check:</strong> Is the match actually live (not paused/ended)?</li>
+<li><strong>Fix:</strong> Refresh page (Ctrl+R or Cmd+R)</li>
+<li><strong>Wait:</strong> May be 1-2 second delay on updates</li>
+<li><strong>Restart:</strong> Close browser tab and reopen</li>
+</ul>
+<h4>Page shows old/stale scores</h4>
+<ul>
+<li><strong>Quick Fix:</strong> Click &quot;Refresh&quot; button on scorecard</li>
+<li><strong>Browser Cache:</strong> Hard refresh (Ctrl+Shift+R on Windows, Cmd+Shift+R on Mac)</li>
+<li><strong>Clear Cache:</strong> Browser menu → Settings → Clear Cache</li>
+</ul>
+<h4>Players names not showing</h4>
+<ul>
+<li><strong>Reason:</strong> Data still loading</li>
+<li><strong>Wait:</strong> Page takes 2-3 seconds to fully load</li>
+<li><strong>If persists:</strong> Refresh page</li>
+</ul>
+<h4>Can&#39;t find a specific match</h4>
+<ul>
+<li><strong>Check:</strong> Match might be finished/archived</li>
+<li><strong>Search:</strong> Use search box to locate match</li>
+<li><strong>Browse:</strong> Scroll through match list</li>
+<li><strong>Try:</strong> Check match date is within current filter range</li>
+</ul>
+<h4>Statistics seem incorrect</h4>
+<ul>
+<li><strong>Check:</strong> Are you looking at the right team?</li>
+<li><strong>Verify:</strong> Over count (decimal shows balls in over)</li>
+<li><strong>Refresh:</strong> Page may show cached version</li>
+<li><strong>Note:</strong> Undo on admin end may change stats</li>
+</ul>
+<h4>Multiple browser tabs showing different scores</h4>
+<ul>
+<li><strong>Issue:</strong> Tab not synced with live updates</li>
+<li><strong>Fix:</strong> Refresh tab (Ctrl+R)</li>
+<li><strong>Prevent:</strong> Use only one tab per match</li>
+<li><strong>Note:</strong> Closes automatically after 5 minutes of inactivity</li>
+</ul>
+<h3>Getting Help</h3>
+<p><strong>Technical Support:</strong></p>
+<ol>
+<li>Note the team names and current score</li>
+<li>Screenshot showing the issue</li>
+<li>Check browser console for errors (F12 → Console tab)</li>
+<li>Clear browser cache and try again</li>
+</ol>
+<p><strong>Feature Requests:</strong></p>
+<ul>
+<li>GitHub Issues: <a href="https://github.com/adhokshjavali2005/AWL_Crick_Score">https://github.com/adhokshjavali2005/AWL_Crick_Score</a></li>
+</ul>
+<p><strong>Known Limitations:</strong></p>
+<ul>
+<li>No offline viewing (live sync requires internet)</li>
+<li>Mobile app not available (web-only)</li>
+<li>Historical matches limited (check date filters)</li>
+<li>Some international browsers may have delays</li>
+</ul>
+<hr>
+<h2>Quick Reference</h2>
+<h3>Score Notation</h3>
+<table>
+<thead>
+<tr>
+<th>Notation</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>145/6</strong></td>
+<td>145 runs, 6 wickets down</td>
+</tr>
+<tr>
+<td><strong>12.3</strong></td>
+<td>12 overs, 3 balls</td>
+</tr>
+<tr>
+<td><strong>SR: 145.23</strong></td>
+<td>Strike rate: 145.23 runs/100 balls</td>
+</tr>
+<tr>
+<td><strong>ER: 8.50</strong></td>
+<td>Economy: 8.50 runs/over</td>
+</tr>
+</tbody></table>
+<h3>Dismissal Types</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Caught</strong></td>
+<td>Fielder caught the ball</td>
+</tr>
+<tr>
+<td><strong>Bowled</strong></td>
+<td>Bowler broke the stumps</td>
+</tr>
+<tr>
+<td><strong>LBW</strong></td>
+<td>Leg Before Wicket</td>
+</tr>
+<tr>
+<td><strong>Run Out</strong></td>
+<td>Failed to reach crease</td>
+</tr>
+<tr>
+<td><strong>Stumped</strong></td>
+<td>Batter out of crease to stumping</td>
+</tr>
+<tr>
+<td><strong>NOT OUT</strong></td>
+<td>Batter still batting</td>
+</tr>
+</tbody></table>
+<h3>Common abbreviations</h3>
+<ul>
+<li><strong>LOI:</strong> Limited Overs International</li>
+<li><strong>T20:</strong> 20-over format</li>
+<li><strong>ODI:</strong> One Day International (50 overs)</li>
+<li><strong>Maiden:</strong> Over with 0 runs</li>
+<li><strong>Dot Ball:</strong> Delivery with 0 runs</li>
+</ul>
+<hr>
+<h2>Features Summary</h2>
+<p>✅ <strong>What You Can Do:</strong></p>
+<ul>
+<li>View live match scores in real-time</li>
+<li>See detailed player statistics</li>
+<li>Watch ball-by-ball commentary</li>
+<li>View final match summary</li>
+<li>Download/share match reports</li>
+<li>Access match history</li>
+</ul>
+<p>❌ <strong>What You Cannot Do (Viewers):</strong></p>
+<ul>
+<li>Edit scores or match details</li>
+<li>Start/end matches</li>
+<li>Undo deliveries</li>
+<li>Change player assignments</li>
+<li>Access admin features</li>
+</ul>
+<hr>
+<h2>Support &amp; Feedback</h2>
+<p><strong>Application:</strong> CricLive - Live Cricket Score Monitor<br><strong>Version:</strong> 1.0<br><strong>Build Date:</strong> March 3, 2026<br><strong>Repository:</strong> <a href="https://github.com/adhokshjavali2005/AWL_Crick_Score">https://github.com/adhokshjavali2005/AWL_Crick_Score</a></p>
+<p>If you have questions about how the app works or find any issues, please refer to the technical documentation in the repository.</p>
+<hr>
+<p><strong>Last Updated:</strong> March 3, 2026<br><strong>Next Review:</strong> Quarterly or upon feature release</p>
+<hr>
+<h2>Enjoy Watching CricLive! 🏏</h2>
+
+</body>
+</html>

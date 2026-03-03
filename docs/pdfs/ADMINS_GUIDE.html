@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CricLive - Admin Guide</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background: white; padding: 40px; max-width: 1000px; margin: 0 auto; }
+    h1 { color: #1e40af; font-size: 32px; margin: 30px 0 20px 0; border-bottom: 3px solid #1e40af; padding-bottom: 10px; }
+    h2 { color: #1e40af; font-size: 24px; margin: 25px 0 15px 0; border-left: 4px solid #1e40af; padding-left: 15px; }
+    h3 { color: #3b82f6; font-size: 18px; margin: 15px 0 10px 0; }
+    p { margin: 10px 0; text-align: justify; }
+    ul, ol { margin: 15px 0 15px 30px; }
+    li { margin: 8px 0; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    table th { background: #1e40af; color: white; padding: 12px; text-align: left; font-weight: 600; }
+    table td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; }
+    table tr:nth-child(even) { background: #f3f4f6; }
+    table tr:hover { background: #e0e7ff; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 13px; }
+    pre { background: #1f2937; color: #e5e7eb; padding: 15px; border-radius: 5px; overflow-x: auto; margin: 15px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.4; }
+    pre code { background: none; padding: 0; color: #e5e7eb; }
+    blockquote { border-left: 4px solid #3b82f6; padding-left: 15px; margin: 15px 0; color: #6b7280; font-style: italic; }
+    strong { color: #1e40af; font-weight: 600; }
+    a { color: #1e40af; text-decoration: none; border-bottom: 1px dotted #1e40af; }
+    a:hover { color: #1d3557; border-bottom: 1px solid #1d3557; }
+    hr { border: none; border-top: 2px solid #e5e7eb; margin: 30px 0; }
+    @media print { body { padding: 20px; } h1 { page-break-before: always; } a { border: none; } }
+  </style>
+</head>
+<body>
+  <h1>CricLive - Admin&#39;s Guide</h1>
+<p><strong>Version:</strong> 1.0<br><strong>Date:</strong> March 3, 2026<br><strong>Application:</strong> CricLive - Live Cricket Score Monitor</p>
+<hr>
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#getting-started">Getting Started</a></li>
+<li><a href="#creating-a-match">Creating a Match</a></li>
+<li><a href="#setting-up-teams">Setting Up Teams</a></li>
+<li><a href="#recording-scores">Recording Scores</a></li>
+<li><a href="#managing-bowlers">Managing Bowlers</a></li>
+<li><a href="#managing-players">Managing Players</a></li>
+<li><a href="#undo-functionality">Undo Functionality</a></li>
+<li><a href="#ending-a-match">Ending a Match</a></li>
+<li><a href="#viewing-summary">Viewing Summary</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol>
+<hr>
+<h2>Getting Started</h2>
+<h3>Accessing the Admin Panel</h3>
+<ol>
+<li>Navigate to <strong><a href="https://criclive-sigma.vercel.app">https://criclive-sigma.vercel.app</a></strong></li>
+<li>Click <strong>&quot;Create Match&quot;</strong> button on the landing page</li>
+<li>You will be logged in as an admin and taken to the match creation screen</li>
+</ol>
+<h3>Login Requirements</h3>
+<ul>
+<li>Admin access is required to manage matches and scores</li>
+<li>Session is maintained in browser localStorage</li>
+<li>Use the same browser to maintain admin session</li>
+</ul>
+<hr>
+<h2>Creating a Match</h2>
+<h3>Step 1: Match Details</h3>
+<ol>
+<li><p>Fill in the following information:</p>
+<ul>
+<li><strong>Team A Name</strong> (e.g., &quot;Mumbai Indians&quot;)</li>
+<li><strong>Team B Name</strong> (e.g., &quot;Delhi Capitals&quot;)</li>
+<li><strong>Overs</strong> (typically 20 for T20, 50 for ODI)</li>
+<li><strong>Toss Winner</strong> (select which team won coin toss)</li>
+<li><strong>Elected To</strong> (choose &quot;Bat&quot; or &quot;Field&quot;)</li>
+</ul>
+</li>
+<li><p>Click <strong>&quot;Next&quot;</strong> to proceed to team setup</p>
+</li>
+</ol>
+<h3>Step 2: Select Toss Winner&#39;s Playing XI</h3>
+<ol>
+<li>Select <strong>11 players</strong> from the available player pool</li>
+<li>The <strong>first selected player</strong> becomes the striker</li>
+<li>The <strong>second selected player</strong> becomes the non-striker</li>
+<li>Click <strong>&quot;Next&quot;</strong> to select the opponent&#39;s team</li>
+</ol>
+<h3>Step 3: Select Opponent&#39;s Playing XI</h3>
+<ol>
+<li>Select <strong>11 players</strong> for the opposing team</li>
+<li>The <strong>first selected player</strong> becomes the bowler</li>
+<li>Click <strong>&quot;Start Match&quot;</strong> to begin live scoring</li>
+</ol>
+<h3>Pre-Match Summary</h3>
+<p>Before match starts, verify:</p>
+<ul>
+<li><input disabled="" type="checkbox"> Both teams have 11 players</li>
+<li><input disabled="" type="checkbox"> Striker and non-striker are different players</li>
+<li><input disabled="" type="checkbox"> Bowler is from the fielding team</li>
+<li><input disabled="" type="checkbox"> Overs count is correct</li>
+<li><input disabled="" type="checkbox"> Toss winner and elected position are correct</li>
+</ul>
+<hr>
+<h2>Setting Up Teams</h2>
+<h3>Adding Players to Team</h3>
+<p>CricLive uses a centralized player pool. When creating a match:</p>
+<ol>
+<li>Browse the <strong>available players</strong> list</li>
+<li>Search players by name using the <strong>search box</strong></li>
+<li>Click on a player to <strong>add to playing XI</strong></li>
+<li>Click to <strong>remove</strong> if you made a mistake</li>
+<li>Verify selection shows exactly <strong>11 players</strong></li>
+</ol>
+<h3>Player Information</h3>
+<p>Each player in the system has:</p>
+<ul>
+<li><strong>Name</strong> (unique identifier)</li>
+<li><strong>Jersey Number</strong> (optional, for reference)</li>
+<li><strong>Role</strong> (Batter/Bowler/All-rounder, for context only)</li>
+</ul>
+<h3>Team Composition Best Practices</h3>
+<ul>
+<li><strong>Opening Pair:</strong> Select your best batsmen for opening</li>
+<li><strong>Middle Order:</strong> Choose stable middle-order batsmen</li>
+<li><strong>Lower Order:</strong> Include reliable bowlers</li>
+<li><strong>All-rounders:</strong> Distribute batting and bowling talent</li>
+<li><strong>Specialist Bowler:</strong> Ensure at least 4-5 bowling options</li>
+</ul>
+<hr>
+<h2>Recording Scores</h2>
+<h3>During an Over</h3>
+<p>The scoring panel shows:</p>
+<ul>
+<li><strong>Current Striker</strong> (batting player, highlighted)</li>
+<li><strong>Current Non-Striker</strong> (waiting to bat)</li>
+<li><strong>Current Bowler</strong> (fielding player)</li>
+<li><strong>Runs This Over</strong> and <strong>Ball Count</strong> (updates live)</li>
+</ul>
+<h3>Recording Runs (Regular Delivery)</h3>
+<ol>
+<li><p>Click the <strong>number buttons</strong> (0, 1, 2, 3, 4, 6) to record runs</p>
+</li>
+<li><p>Application automatically:</p>
+<ul>
+<li><strong>Swaps striker/non-striker</strong> if odd runs (1, 3)</li>
+<li><strong>Advances to next ball</strong></li>
+<li><strong>Rotates bowler</strong> when over completes (after 6th ball)</li>
+</ul>
+</li>
+<li><p>Verify on-screen display matches expected state</p>
+</li>
+</ol>
+<h3>Recording a Wicket (Out)</h3>
+<ol>
+<li>Click the <strong>&quot;Out&quot;</strong> button when a batter is dismissed</li>
+<li>Select the <strong>type of dismissal</strong> (Caught, Bowled, LBW, Run Out, etc.)</li>
+<li>Select the <strong>bowler credited</strong> (usually current bowler)</li>
+<li>New batter from bench automatically takes strike</li>
+<li>Application advances to next ball</li>
+</ol>
+<h3>Recording Extras</h3>
+<p><strong>Wide Ball:</strong></p>
+<ul>
+<li>1 run added to extras</li>
+<li>Striker/non-striker <strong>do NOT swap</strong> (same batter continues)</li>
+<li>Over count does NOT advance (separate over tally)</li>
+<li>Bowler does NOT rotate</li>
+</ul>
+<p><strong>No Ball:</strong></p>
+<ul>
+<li>1 run added to extras  </li>
+<li>Striker/non-striker <strong>do NOT swap</strong> (same batter continues)</li>
+<li>Over count does NOT advance</li>
+<li>Bowler does NOT rotate</li>
+</ul>
+<p><strong>Bye/Leg Bye:</strong></p>
+<ul>
+<li>Batter does NOT run (run credited to &quot;byes&quot; or &quot;leg byes&quot;)</li>
+<li>Runs recorded automatically</li>
+<li>Striker/non-striker <strong>swap</strong> if odd runs</li>
+<li>Over count <strong>DOES advance</strong></li>
+<li>Bowler rotates at over end</li>
+</ul>
+<hr>
+<h2>Managing Bowlers</h2>
+<h3>Automatic Bowler Rotation</h3>
+<ul>
+<li><strong>Bowler rotates automatically</strong> after every complete over (6 balls)</li>
+<li>System selects next bowler randomly from fielding team</li>
+<li>Selected bowler is <strong>always different</strong> from previous bowler</li>
+<li>No manual action required by admin</li>
+</ul>
+<h3>Changing Bowler Manually (If Needed)</h3>
+<ol>
+<li>Click on the <strong>current bowler name/button</strong> in the scoring panel</li>
+<li>Select a <strong>different bowler</strong> from dropdown</li>
+<li>Confirm selection</li>
+<li>Change takes effect on next ball</li>
+</ol>
+<h3>Bowler Considerations</h3>
+<ul>
+<li><strong>Bowling Limits:</strong> CricLive doesn&#39;t enforce bowling limits; track manually</li>
+<li><strong>Rotation Strategy:</strong> System uses random selection (no bias toward any bowler)</li>
+<li><strong>Impact on Undo:</strong> Correct bowler is restored when undo is used</li>
+</ul>
+<hr>
+<h2>Managing Players</h2>
+<h3>Changing Striker/Non-Striker (During Match)</h3>
+<p><strong>Swap for Field Adjustment:</strong></p>
+<ul>
+<li>Click <strong>&quot;Swap Striker&quot;</strong> button to exchange striker and non-striker</li>
+<li>Useful if you need non-striker to face next ball</li>
+<li><strong>Note:</strong> Normally this happens automatically on odd runs</li>
+</ul>
+<p><strong>Bringing New Batter (Non-Dismissal):</strong></p>
+<ul>
+<li>Use <strong>&quot;Out&quot;</strong> action if retiring hurt or similar</li>
+<li>New batter selected from available players</li>
+<li>Takes strike immediately</li>
+</ul>
+<h3>Selecting Next Available Batter</h3>
+<p>When a batter is out, the system:</p>
+<ol>
+<li>Filters out already-used players</li>
+<li>Randomly selects from remaining bench players</li>
+<li><strong>Guarantees</strong> the selected player is not already non-striker</li>
+<li>Shows new player name in scoring panel</li>
+</ol>
+<h3>Player Substitution Best Practices</h3>
+<ul>
+<li>Keep field adjustments minimal during an over</li>
+<li>Make substitutions <strong>between overs</strong> when possible</li>
+<li>Note any injuries or tactical changes for the summary</li>
+<li>Verify new player is actually available (not already playing)</li>
+</ul>
+<hr>
+<h2>Undo Functionality</h2>
+<h3>When to Use Undo</h3>
+<p>Use &quot;Undo Last Ball&quot; when:</p>
+<ul>
+<li><strong>Scoring mistake:</strong> Entered wrong runs/wicket</li>
+<li><strong>Input error:</strong> Clicked wrong button</li>
+<li><strong>System issue:</strong> Unexpected state change</li>
+</ul>
+<h3>How Undo Works</h3>
+<ol>
+<li><p>Click <strong>&quot;Undo Last Ball&quot;</strong> button (appears in scoring panel)</p>
+</li>
+<li><p>Last ball is <strong>completely reversed</strong>:</p>
+<ul>
+<li>Runs removed</li>
+<li>Any wicket restored</li>
+<li>Striker/non-striker positions corrected</li>
+<li>Bowler restored to pre-ball state</li>
+</ul>
+</li>
+<li><p>Ball counter decrements</p>
+</li>
+<li><p>Continue scoring as normal</p>
+</li>
+</ol>
+<h3>Undo Behavior with Complex Plays</h3>
+<p><strong>Odd Runs (1, 3):</strong></p>
+<ul>
+<li>Striker and non-striker are swapped on delivery</li>
+<li>Undo restores both to original positions ✓</li>
+</ul>
+<p><strong>End of Over:</strong></p>
+<ul>
+<li>Striker automatically swaps to face new bowler</li>
+<li>Undo restores original striker ✓</li>
+</ul>
+<p><strong>Wicket:</strong></p>
+<ul>
+<li>Out batter restored to batting lineup</li>
+<li>Previous batter returns to crease</li>
+<li>Undo restores all player positions ✓</li>
+</ul>
+<p><strong>Multiple Undos:</strong></p>
+<ul>
+<li>Can undo multiple balls in sequence</li>
+<li>Each undo goes back one ball</li>
+<li>Verify match state after each undo</li>
+</ul>
+<h3>Important Notes</h3>
+<ul>
+<li><strong>Undo only works for balls bowled</strong> (not during innings break setup)</li>
+<li><strong>Undo in summary:</strong> Not possible; go back to live scoring if needed</li>
+<li><strong>Undo at match end:</strong> Available for 1 ball after match ends</li>
+<li><strong>Real-time sync:</strong> Undo updates appear on all viewers&#39; screens</li>
+</ul>
+<hr>
+<h2>Ending a Match</h2>
+<h3>Automatic Match End</h3>
+<p>CricLive automatically ends the match when:</p>
+<ul>
+<li><strong>Batting team:</strong> All 10 wickets lost (only 1 player remaining)</li>
+<li><strong>Bowling team:</strong> All overs bowled (against team batting first)</li>
+<li><strong>Chasing team:</strong> Required runs scored in final over</li>
+</ul>
+<h3>Manual End (If Match Stops)</h3>
+<ol>
+<li>Scoring panel shows <strong>&quot;Match Ended&quot;</strong> screen</li>
+<li>Review final scores for both teams</li>
+<li>Click <strong>&quot;View Summary&quot;</strong> to finalize match record</li>
+<li>Or click <strong>&quot;Undo Last Ball&quot;</strong> to resume if stopped early</li>
+</ol>
+<h3>Post-Match</h3>
+<p>Once match ends:</p>
+<ul>
+<li><strong>Live scoring disabled</strong> (cannot add more runs)</li>
+<li><strong>Summary view</strong> shows match statistics</li>
+<li><strong>Undo available for last ball</strong> only (in case of finalization error)</li>
+<li>Match stored in database for records</li>
+</ul>
+<hr>
+<h2>Viewing Summary</h2>
+<h3>Summary Report Contents</h3>
+<p>After match ends, summary shows:</p>
+<p><strong>Match Information:</strong></p>
+<ul>
+<li>Teams, overs, toss details</li>
+<li>Venue/date information (if available)</li>
+</ul>
+<p><strong>Final Scores:</strong></p>
+<ul>
+<li>Team A total runs, wickets lost, overs faced</li>
+<li>Team B total runs, wickets lost, overs faced</li>
+<li><strong>Result</strong> (Winner, margin of victory)</li>
+</ul>
+<p><strong>Batting Statistics:</strong></p>
+<ul>
+<li>Top scorers</li>
+<li>Strike rate, balls faced</li>
+<li>How each batter got out</li>
+</ul>
+<p><strong>Bowling Statistics:</strong></p>
+<ul>
+<li>Bowlers&#39; figures (overs, runs, wickets)</li>
+<li>Economy rate</li>
+<li>Best bowling performance</li>
+</ul>
+<p><strong>Key Moments:</strong></p>
+<ul>
+<li>Partnership highlights</li>
+<li>Critical wickets</li>
+<li>Momentum shifts</li>
+</ul>
+<h3>Downloading/Sharing Summary</h3>
+<ol>
+<li><strong>Generate PDF:</strong> Use browser &quot;Print to PDF&quot; (Ctrl+P, then Print &gt; PDF)</li>
+<li><strong>Share Link:</strong> Summary auto-saves with unique match ID</li>
+<li><strong>Export:</strong> Manual copy of statistics for records</li>
+</ol>
+<hr>
+<h2>Troubleshooting</h2>
+<h3>Common Issues</h3>
+<h4>Ball counter not advancing</h4>
+<ul>
+<li><strong>Check:</strong> Is current ball status complete (runs/out recorded)?</li>
+<li><strong>Fix:</strong> Click run button or Out; advancement is automatic</li>
+<li><strong>Verify:</strong> Refresh page; changes sync from server</li>
+</ul>
+<h4>Striker/non-striker showing same player</h4>
+<ul>
+<li><strong>Issue:</strong> Rare race condition in state sync</li>
+<li><strong>Fix:</strong> Click &quot;Undo Last Ball&quot;; state will reset</li>
+<li><strong>Report:</strong> Note time/match if recurring</li>
+</ul>
+<h4>Bowler not rotating</h4>
+<ul>
+<li><strong>Check:</strong> Have 6 balls been bowled? (Rotation happens at over end)</li>
+<li><strong>Fix:</strong> Complete the over; bowler will rotate on 7th ball</li>
+<li><strong>Verify:</strong> Check ball counter shows 0-of-next-over</li>
+</ul>
+<h4>Match not ending when it should</h4>
+<ul>
+<li><strong>Check:</strong> Are all 10 wickets actually down? (11 players - 1 batter = 10 out)</li>
+<li><strong>Fix:</strong> Use &quot;Undo&quot; to correct any scoring errors</li>
+<li><strong>Manual:</strong> Contact support if system error suspected</li>
+</ul>
+<h4>Undo not working</h4>
+<ul>
+<li><strong>Check:</strong> Is match already finalized? (Cannot undo in summary view)</li>
+<li><strong>Fix:</strong> Go back to live match screen before undoing</li>
+<li><strong>Verify:</strong> Browser was not accidentally refreshed (loses state)</li>
+</ul>
+<h4>Multiple devices showing different scores</h4>
+<ul>
+<li><strong>Issue:</strong> Socket.io connection delayed or stale</li>
+<li><strong>Fix:</strong> Refresh page (Ctrl+R); data syncs from server</li>
+<li><strong>Prevent:</strong> Keep only one admin account active per match</li>
+</ul>
+<h3>Getting Help</h3>
+<p><strong>For technical issues:</strong></p>
+<ol>
+<li>Note the <strong>match ID</strong> and <strong>time of issue</strong></li>
+<li>Screenshot showing the problem state</li>
+<li>Contact: [Support Email]</li>
+</ol>
+<p><strong>For feature requests:</strong></p>
+<ul>
+<li>Use GitHub Issues: <a href="https://github.com/adhokshjavali2005/AWL_Crick_Score">https://github.com/adhokshjavali2005/AWL_Crick_Score</a></li>
+</ul>
+<p><strong>Known Limitations:</strong></p>
+<ul>
+<li>No offline support (requires internet connection)</li>
+<li>Favicon may need hard refresh (Ctrl+Shift+R) to update</li>
+<li>Very large matches (90+ overs) not tested; use 50-over limit</li>
+</ul>
+<hr>
+<h2>Quick Reference</h2>
+<h3>Keyboard Shortcuts</h3>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Shortcut</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Record 1 Run</td>
+<td>Click &quot;1&quot; button</td>
+</tr>
+<tr>
+<td>Record 4 Runs</td>
+<td>Click &quot;4&quot; button</td>
+</tr>
+<tr>
+<td>Record 6 Runs</td>
+<td>Click &quot;6&quot; button</td>
+</tr>
+<tr>
+<td>Record Wicket</td>
+<td>Click &quot;Out&quot; button</td>
+</tr>
+<tr>
+<td>Undo Last Ball</td>
+<td>Click &quot;Undo&quot; button</td>
+</tr>
+<tr>
+<td>Refresh Page</td>
+<td>Ctrl+R (to sync changes)</td>
+</tr>
+</tbody></table>
+<h3>Button Reference</h3>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0, 1, 2, 3, 4, 6</td>
+<td>Record runs</td>
+</tr>
+<tr>
+<td>Out</td>
+<td>Record dismissal</td>
+</tr>
+<tr>
+<td>Undo Last Ball</td>
+<td>Reverse last delivery</td>
+</tr>
+<tr>
+<td>View Summary</td>
+<td>Go to match summary</td>
+</tr>
+</tbody></table>
+<h3>Match States</h3>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+<th>Action Allowed</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Setup</strong></td>
+<td>Selecting teams</td>
+<td>Edit selections</td>
+</tr>
+<tr>
+<td><strong>Live</strong></td>
+<td>Match in progress</td>
+<td>Record deliveries</td>
+</tr>
+<tr>
+<td><strong>Innings Break</strong></td>
+<td>First innings ended</td>
+<td>Start 2nd innings</td>
+</tr>
+<tr>
+<td><strong>Ended</strong></td>
+<td>Match complete</td>
+<td>View summary, undo last ball</td>
+</tr>
+<tr>
+<td><strong>Summary</strong></td>
+<td>Final statistics</td>
+<td>View details only</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Support &amp; Feedback</h2>
+<p><strong>Application:</strong> CricLive - Live Cricket Score Monitor<br><strong>Version:</strong> 1.0<br><strong>Build Date:</strong> March 3, 2026<br><strong>Repository:</strong> <a href="https://github.com/adhokshjavali2005/AWL_Crick_Score">https://github.com/adhokshjavali2005/AWL_Crick_Score</a></p>
+<p>For questions or feedback, please refer to SESSION_HANDOVER.md in the repository root.</p>
+<hr>
+<p><strong>Last Updated:</strong> March 3, 2026<br><strong>Next Review:</strong> Quarterly or upon feature release</p>
+
+</body>
+</html>
