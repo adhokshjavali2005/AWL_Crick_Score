@@ -154,7 +154,7 @@ const ScorecardSection = ({
     <div className="flex items-center gap-2">
       {icon === 'bat'
         ? <span className="text-base">🏏</span>
-        : <span className="text-base">🎳</span>
+        : <span className="text-base">⚾</span>
       }
       <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">{title}</p>
     </div>
