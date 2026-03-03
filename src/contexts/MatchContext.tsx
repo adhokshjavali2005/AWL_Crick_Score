@@ -486,11 +486,23 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   }, [setMatchLocal]);
 
   const setStriker = useCallback((playerId: string) => {
-    setMatchLocal(prev => ({ ...prev, strikerId: playerId }));
+    setMatchLocal(prev => {
+      // Prevent setting same player as both striker and non-striker
+      if (playerId === prev.nonStrikerId) {
+        return prev; // Don't allow duplicate
+      }
+      return { ...prev, strikerId: playerId };
+    });
   }, [setMatchLocal]);
 
   const setNonStriker = useCallback((playerId: string) => {
-    setMatchLocal(prev => ({ ...prev, nonStrikerId: playerId }));
+    setMatchLocal(prev => {
+      // Prevent setting same player as both striker and non-striker
+      if (playerId === prev.strikerId) {
+        return prev; // Don't allow duplicate
+      }
+      return { ...prev, nonStrikerId: playerId };
+    });
   }, [setMatchLocal]);
 
   const setBowler = useCallback((playerId: string) => {
