@@ -524,6 +524,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
   const getNextBowler = (match: MatchState): string | null => {
     const fieldingTeam = match.battingTeam === 'A' ? match.teamB : match.teamA;
+    
+    // If current bowler is invalid or not a real player ID, pick first available
+    if (!match.bowlerId || !fieldingTeam.players.find(p => p.id === match.bowlerId)) {
+      return fieldingTeam.players[0]?.id || null;
+    }
+    
     const available = fieldingTeam.players.filter(p => p.id !== match.bowlerId);
 
     if (available.length === 0) {
@@ -641,7 +647,23 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       };
 
       // Get next batsman to replace striker (new batter comes to strike directly)
-      const nextBatsman = getNextBatsman(prev);
+      // Ensure new batsman is always different from current non-striker
+      const team = prev.battingTeam === 'A' ? prev.teamA : prev.teamB;
+      const usedIds = new Set([prev.strikerId, prev.nonStrikerId]);
+      const available = team.players.filter(p => !usedIds.has(p.id));
+      
+      let nextBatsman: string | null = null;
+      if (available.length > 0) {
+        nextBatsman = available[Math.floor(Math.random() * available.length)].id;
+      } else {
+        // No batsman left — restart with proper Fisher-Yates shuffle
+        const shuffled = [...team.players];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        nextBatsman = shuffled[0]?.id || null;
+      }
 
       let strikerId = nextBatsman;
       let nonStrikerId = prev.nonStrikerId;
