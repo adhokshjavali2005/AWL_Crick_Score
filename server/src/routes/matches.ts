@@ -169,9 +169,15 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 /**
- * DELETE /api/matches/reset/all — Delete ALL matches (auth required, admin reset)
+ * DELETE /api/matches/reset/all — Delete ALL matches (service-key auth)
+ * Uses service role key in x-service-key header for authorization
  */
-router.delete('/reset/all', requireAuth, async (_req: AuthRequest, res) => {
+router.delete('/reset/all', async (req: Request, res: Response) => {
+  const serviceKey = req.headers['x-service-key'] as string;
+  if (!serviceKey || serviceKey !== process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    res.status(401).json({ error: 'Unauthorized — invalid service key' });
+    return;
+  }
   try {
     const count = await prisma.match.count();
     await prisma.match.deleteMany({});
