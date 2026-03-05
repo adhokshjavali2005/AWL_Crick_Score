@@ -169,6 +169,21 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res) => {
 });
 
 /**
+ * DELETE /api/matches/reset/all — Delete ALL matches (auth required, admin reset)
+ */
+router.delete('/reset/all', requireAuth, async (_req: AuthRequest, res) => {
+  try {
+    const count = await prisma.match.count();
+    await prisma.match.deleteMany({});
+    broadcastMatchListUpdate();
+    res.json({ success: true, deleted: count });
+  } catch (error) {
+    console.error('Error resetting all matches:', error);
+    res.status(500).json({ error: 'Failed to reset matches' });
+  }
+});
+
+/**
  * DELETE /api/matches/cleanup/orphaned — Delete matches with no admins and no creator (auth required)
  */
 router.delete('/cleanup/orphaned', requireAuth, async (_req: AuthRequest, res) => {
