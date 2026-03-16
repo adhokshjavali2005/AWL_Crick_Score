@@ -345,20 +345,23 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       console.error('[CricLive] Initial fetch failed:', err);
     });
 
-    // Poll every 5s as fallback for Socket.io (socket is primary update path now)
+    // Poll every 8s as fallback for Socket.io (socket is primary update path now)
     const interval = setInterval(() => {
-      // Refresh all matches list (for LiveMatches page)
-      fetchMatches().then(matches => {
-        const states = matches.map((m: { state: MatchState }) => m.state);
-        setAllMatches(states);
-        saveAllMatches(states);
-      }).catch((err) => {
-        console.error('[CricLive] Poll fetch failed:', err);
-      });
+      const socketFresh = Date.now() - lastSocketUpdateRef.current < 8000; // socket delivered in last 8s
+
+      // Only refresh all matches list if socket hasn't been active recently
+      if (!socketFresh) {
+        fetchMatches().then(matches => {
+          const states = matches.map((m: { state: MatchState }) => m.state);
+          setAllMatches(states);
+          saveAllMatches(states);
+        }).catch((err) => {
+          console.error('[CricLive] Poll fetch failed:', err);
+        });
+      }
 
       // Refresh current match unless this tab is actively doing local scoring.
       const currentId = matchIdRef.current;
-      const socketFresh = Date.now() - lastSocketUpdateRef.current < 5000; // socket delivered in last 5s
       const allowRemoteRefresh = !isActiveScoringSession();
       if (currentId && allowRemoteRefresh && !socketFresh) {
         fetchMatch(currentId).then(remoteState => {
@@ -369,7 +372,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
       }
-    }, 2000);
+    }, 8000);
 
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
