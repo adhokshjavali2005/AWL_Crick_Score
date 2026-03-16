@@ -217,9 +217,24 @@ const ScoreBoard = () => {
 const OverTracker = () => {
   const { match, currentBattingScore } = useMatch();
 
-  // Show balls from the current over; if new over just started (0 balls), show previous over
+  const findIndexAtLegalBallCount = (targetLegalBalls: number) => {
+    let legal = 0;
+    for (let i = 0; i < match.ballEvents.length; i++) {
+      if (legal === targetLegalBalls) return i;
+      const ev = match.ballEvents[i];
+      if (ev.deliveryType === 'normal' || ev.isOut) {
+        legal++;
+      }
+    }
+    return match.ballEvents.length;
+  };
+
+  // Show balls from the current over.
+  // If balls are 0, show previous over only when the new over has no events yet.
+  // This keeps first-ball Wd/NB visible immediately in the new over.
   const currentOver = currentBattingScore.overs;
-  const showOver = (currentBattingScore.balls === 0 && currentOver > 0)
+  const hasCurrentOverEvents = match.ballEvents.length > findIndexAtLegalBallCount(currentOver * 6);
+  const showOver = (currentBattingScore.balls === 0 && currentOver > 0 && !hasCurrentOverEvents)
     ? currentOver - 1
     : currentOver;
 
