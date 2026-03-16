@@ -11,11 +11,21 @@ const prisma = new PrismaClient();
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const teams = await prisma.team.findMany({
-      orderBy: { name: 'asc' },
-      select: { name: true },
-    });
-    res.json(teams.map(t => t.name));
+    const [canonicalTeams, storedTeams] = await Promise.all([
+      prisma.team.findMany({
+        orderBy: { name: 'asc' },
+        select: { name: true },
+      }),
+      prisma.teamsStore.findMany({
+        orderBy: { teamName: 'asc' },
+        select: { teamName: true },
+      }),
+    ]);
+    const names = Array.from(new Set([
+      ...canonicalTeams.map(t => t.name),
+      ...storedTeams.map(t => t.teamName),
+    ])).sort((a, b) => a.localeCompare(b));
+    res.json(names);
   } catch (error) {
     console.error('Error listing teams:', error);
     res.status(500).json({ error: 'Failed to list teams' });
@@ -28,10 +38,15 @@ router.get('/', async (_req: Request, res: Response) => {
 router.get('/:name/players', async (req, res) => {
   try {
     const teamName = req.params.name as string;
-    const team = await prisma.teamPlayers.findUnique({
-      where: { teamName },
-    });
-    res.json(team?.players || []);
+    const [team, mirroredTeam] = await Promise.all([
+      prisma.teamPlayers.findUnique({
+        where: { teamName },
+      }),
+      prisma.teamsStore.findUnique({
+        where: { teamName },
+      }),
+    ]);
+    res.json(team?.players || mirroredTeam?.players || []);
   } catch (error) {
     console.error('Error getting team players:', error);
     res.status(500).json({ error: 'Failed to get team players' });
@@ -77,6 +92,19 @@ router.put('/:name/players', requireAuth, async (req: Request, res: Response) =>
       },
       update: {
         players: players,
+        playerNames,
+      },
+    });
+
+    await prisma.teamsStore.upsert({
+      where: { teamName },
+      create: {
+        teamName,
+        players,
+        playerNames,
+      },
+      update: {
+        players,
         playerNames,
       },
     });

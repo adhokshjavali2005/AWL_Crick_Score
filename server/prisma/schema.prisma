@@ -47,3 +47,14 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+/// Existing Supabase table shown in dashboard; kept in sync with website changes
+model TeamsStore {
+  id          String   @id @default(uuid())
+  teamName    String   @unique
+  players     Json
+  playerNames Json     @default("[]")
+  updatedAt   DateTime @updatedAt
+
+  @@map("Teams")
+}
