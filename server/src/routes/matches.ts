@@ -128,7 +128,9 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     broadcastMatchUpdate(matchId, state);
-    broadcastMatchListUpdate();
+    // NOTE: broadcastMatchListUpdate intentionally omitted here — clients update
+    // allMatches in-place from the match-update socket event, so a full list
+    // re-fetch on every ball is unnecessary and floods the server.
     res.json(match.state);
   } catch (error) {
     console.error('Error updating match:', error);
