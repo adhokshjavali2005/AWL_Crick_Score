@@ -7,6 +7,12 @@ import { broadcastMatchUpdate, broadcastMatchCreated, broadcastMatchListUpdate }
 const router = Router();
 const prisma = new PrismaClient();
 
+const getStateVersion = (state: unknown): number => {
+  if (!state || typeof state !== 'object') return 0;
+  const version = (state as { syncVersion?: unknown }).syncVersion;
+  return typeof version === 'number' ? version : 0;
+};
+
 /**
  * GET /api/matches — List active matches (public)
  */
@@ -64,18 +70,23 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
+    const normalizedState = {
+      ...state,
+      syncVersion: getStateVersion(state) || 1,
+    };
+
     const match = await prisma.match.create({
       data: {
-        id: state.id,
-        state: state,
-        status: state.status || 'setup',
-        teamAName: state.teamA?.name || '',
-        teamBName: state.teamB?.name || '',
+        id: normalizedState.id,
+        state: normalizedState,
+        status: normalizedState.status || 'setup',
+        teamAName: normalizedState.teamA?.name || '',
+        teamBName: normalizedState.teamB?.name || '',
         createdBy: req.userId,
       },
     });
 
-    broadcastMatchCreated(state);
+    broadcastMatchCreated(normalizedState);
     broadcastMatchListUpdate();
     res.status(201).json(match.state);
   } catch (error) {
@@ -106,6 +117,15 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     }
 
     const existingState = existing.state as Record<string, unknown>;
+    const existingVersion = getStateVersion(existing.state);
+    const incomingVersion = getStateVersion(state);
+
+    // Guard against out-of-order requests overwriting newer score state.
+    if (incomingVersion < existingVersion) {
+      res.json(existing.state);
+      return;
+    }
+
     const admins = (existingState.admins || []) as string[];
     const isAdmin = admins.includes(req.userId!);
     const isCreator = existing.createdBy === req.userId;
