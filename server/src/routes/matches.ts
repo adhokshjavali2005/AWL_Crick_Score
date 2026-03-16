@@ -15,6 +15,22 @@ function extractTeamName(team: unknown): string {
   return typeof name === 'string' ? name : '';
 }
 
+function extractTeamPlayers(team: unknown): unknown[] {
+  if (!team || typeof team !== 'object') return [];
+  const players = (team as { players?: unknown }).players;
+  return Array.isArray(players) ? players : [];
+}
+
+function extractPlayerNames(players: unknown[]): string[] {
+  return players
+    .map((player) => {
+      if (!player || typeof player !== 'object') return '';
+      const name = (player as { name?: unknown }).name;
+      return typeof name === 'string' ? name.trim() : '';
+    })
+    .filter((name): name is string => Boolean(name));
+}
+
 async function ensureTeamsTableShape() {
   if (!teamsTableReadyPromise) {
     teamsTableReadyPromise = (async () => {
@@ -44,20 +60,39 @@ async function ensureTeamsTableShape() {
   await teamsTableReadyPromise;
 }
 
-async function ensureTeamsExist(teamNames: string[]) {
+async function ensureTeamsExist(teams: Array<{ name: string; players: unknown[] }>) {
   await ensureTeamsTableShape();
-  const names = Array.from(new Set(teamNames.map(n => n.trim()).filter(Boolean)));
-  if (names.length === 0) return;
+  const uniqueTeams = new Map<string, unknown[]>();
+  for (const team of teams) {
+    const name = team.name.trim();
+    if (!name) continue;
+    uniqueTeams.set(name, team.players);
+  }
 
-  for (const name of names) {
+  if (uniqueTeams.size === 0) return;
+
+  for (const [name, players] of uniqueTeams) {
+    const playerNames = extractPlayerNames(players);
     const id = randomUUID();
-    await prisma.$executeRaw`
-      INSERT INTO "Teams" ("id", "teamName", "players", "playerNames", "updatedAt")
-      VALUES (${id}, ${name}, ${JSON.stringify([])}::jsonb, ${JSON.stringify([])}::jsonb, NOW())
-      ON CONFLICT ("teamName")
-      DO UPDATE SET
-        "updatedAt" = NOW()
-    `;
+    if (players.length > 0 || playerNames.length > 0) {
+      await prisma.$executeRaw`
+        INSERT INTO "Teams" ("id", "teamName", "players", "playerNames", "updatedAt")
+        VALUES (${id}, ${name}, ${JSON.stringify(players)}::jsonb, ${JSON.stringify(playerNames)}::jsonb, NOW())
+        ON CONFLICT ("teamName")
+        DO UPDATE SET
+          "players" = EXCLUDED."players",
+          "playerNames" = EXCLUDED."playerNames",
+          "updatedAt" = NOW()
+      `;
+    } else {
+      await prisma.$executeRaw`
+        INSERT INTO "Teams" ("id", "teamName", "players", "playerNames", "updatedAt")
+        VALUES (${id}, ${name}, ${JSON.stringify([])}::jsonb, ${JSON.stringify([])}::jsonb, NOW())
+        ON CONFLICT ("teamName")
+        DO UPDATE SET
+          "updatedAt" = NOW()
+      `;
+    }
   }
 }
 
@@ -132,7 +167,10 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       },
     });
 
-    await ensureTeamsExist([teamAName, teamBName]);
+    await ensureTeamsExist([
+      { name: teamAName, players: extractTeamPlayers(state.teamA) },
+      { name: teamBName, players: extractTeamPlayers(state.teamB) },
+    ]);
 
     broadcastMatchCreated(state);
     broadcastMatchListUpdate();
@@ -193,7 +231,10 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
       },
     });
 
-    await ensureTeamsExist([nextTeamAName, nextTeamBName]);
+    await ensureTeamsExist([
+      { name: nextTeamAName, players: extractTeamPlayers(state.teamA) },
+      { name: nextTeamBName, players: extractTeamPlayers(state.teamB) },
+    ]);
 
     broadcastMatchUpdate(matchId, state);
     // Refresh LiveMatches list only when list metadata actually changes.
