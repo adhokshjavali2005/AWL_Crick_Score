@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { requireAuth, optionalAuth, type AuthRequest } from '../middleware/auth.js';
 import { broadcastMatchUpdate, broadcastMatchCreated, broadcastMatchListUpdate } from '../socket.js';
 
@@ -48,21 +49,15 @@ async function ensureTeamsExist(teamNames: string[]) {
   const names = Array.from(new Set(teamNames.map(n => n.trim()).filter(Boolean)));
   if (names.length === 0) return;
 
-  await prisma.team.createMany({
-    data: names.map(name => ({ name })),
-    skipDuplicates: true,
-  });
-
   for (const name of names) {
-    await prisma.teamsStore.upsert({
-      where: { teamName: name },
-      create: {
-        teamName: name,
-        players: [],
-        playerNames: [],
-      },
-      update: {},
-    });
+    const id = randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO "Teams" ("id", "teamName", "players", "playerNames", "updatedAt")
+      VALUES (${id}, ${name}, ${JSON.stringify([])}::jsonb, ${JSON.stringify([])}::jsonb, NOW())
+      ON CONFLICT ("teamName")
+      DO UPDATE SET
+        "updatedAt" = NOW()
+    `;
   }
 }
 
