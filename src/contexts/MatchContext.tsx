@@ -49,6 +49,8 @@ export interface MatchState {
   mainMatchFirstInnings: BallEvent[];
   mainMatchSecondInnings: BallEvent[];
   superOverHistory: Array<{ firstInnings: BallEvent[]; secondInnings: BallEvent[] }>;
+  syncVersion: number;
+  updatedAtMs: number;
 }
 
 interface MatchContextType {
@@ -104,11 +106,45 @@ const initialMatch: MatchState = {
   mainMatchFirstInnings: [],
   mainMatchSecondInnings: [],
   superOverHistory: [],
+  syncVersion: 0,
+  updatedAtMs: 0,
 };
 
 const MATCH_STORAGE_KEY = 'criclive_match_state';
 const ALL_MATCHES_KEY = 'criclive_all_matches';
 const TEAM_PLAYERS_KEY = 'criclive_team_players';
+
+const getSyncVersion = (state: MatchState): number => (
+  typeof state.syncVersion === 'number' ? state.syncVersion : 0
+);
+
+const normalizeMatchState = (state: MatchState): MatchState => ({
+  ...state,
+  syncVersion: getSyncVersion(state),
+  updatedAtMs: typeof state.updatedAtMs === 'number' ? state.updatedAtMs : 0,
+});
+
+const shouldAcceptRemoteMatch = (remote: MatchState, current: MatchState, localWindowActive: boolean): boolean => {
+  const remoteVersion = getSyncVersion(remote);
+  const currentVersion = getSyncVersion(current);
+
+  if (remoteVersion > currentVersion) return true;
+  if (remoteVersion < currentVersion) return false;
+
+  // Same version: during fresh local edits, keep local state authoritative.
+  if (localWindowActive) return false;
+
+  return (remote.updatedAtMs || 0) >= (current.updatedAtMs || 0);
+};
+
+const mergeMatchesByVersion = (current: MatchState[], incoming: MatchState[]): MatchState[] => {
+  return incoming.map(nextRaw => {
+    const next = normalizeMatchState(nextRaw);
+    const existing = current.find(m => m.id === next.id);
+    if (!existing) return next;
+    return shouldAcceptRemoteMatch(next, normalizeMatchState(existing), false) ? next : existing;
+  });
+};
 
 const loadTeamPlayers = (teamName: string): Player[] => {
   try {
@@ -145,7 +181,7 @@ const loadMatchFromStorage = (): MatchState => {
   try {
     const stored = localStorage.getItem(MATCH_STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored) as MatchState;
+      return normalizeMatchState(JSON.parse(stored) as MatchState);
     }
   } catch (e) {
     // ignore parse errors
@@ -156,7 +192,7 @@ const loadMatchFromStorage = (): MatchState => {
 const loadAllMatches = (): MatchState[] => {
   try {
     const stored = localStorage.getItem(ALL_MATCHES_KEY);
-    if (stored) return JSON.parse(stored) as MatchState[];
+    if (stored) return (JSON.parse(stored) as MatchState[]).map(normalizeMatchState);
   } catch (e) { /* ignore */ }
   return [];
 };
@@ -191,12 +227,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     }, 80);
   }, []);
 
-  const isActiveScoringSession = useCallback(() => {
-    if (typeof window === 'undefined') return false;
-    // Keep local admin interactions (selection + scoring) authoritative briefly,
-    // so delayed socket/API echoes cannot roll back just-clicked values.
+  const isLocalAuthoritativeWindow = useCallback(() => {
+    // Keep local admin interactions authoritative briefly so delayed remote
+    // updates cannot roll back just-clicked values anywhere in admin flows.
     const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 4000;
-    return isAdminRef.current && localChangeIsFresh && window.location.pathname.includes('/admin');
+    return isAdminRef.current && localChangeIsFresh;
   }, []);
 
   // Wrapper for setMatch that marks the change as local (from user action)
@@ -206,7 +241,13 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     localMutationIdRef.current += 1;
     lastLocalMutationAtRef.current = Date.now();
     setMatch(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
+      const nextBase = typeof updater === 'function' ? updater(prev) : updater;
+      if (nextBase === prev) return prev;
+      const next: MatchState = {
+        ...nextBase,
+        syncVersion: Math.max(getSyncVersion(prev) + 1, getSyncVersion(nextBase) + 1),
+        updatedAtMs: Date.now(),
+      };
       // Synchronously update isAdminRef so poll/socket guards work immediately
       isAdminRef.current = user ? next.admins.includes(user.id) : false;
       // Batch socket broadcasts during rapid scoring bursts.
@@ -297,18 +338,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const unsubUpdate = onMatchUpdate((data: { matchId: string; state: unknown }) => {
-      const remoteState = data.state as MatchState;
-
-      // Skip echoes of our own scoring entirely — avoids double/triple re-renders
-      // from both the socket relay and the API broadcast on the scorer's device.
-      if (data.matchId === match.id && isActiveScoringSession()) {
-        return;
-      }
+      const remoteState = normalizeMatchState(data.state as MatchState);
 
       // Update allMatches instantly (for LiveMatches page)
       setAllMatches(prev => {
         const idx = prev.findIndex(m => m.id === data.matchId);
         if (idx === -1) return prev;
+        const current = normalizeMatchState(prev[idx]);
+        if (!shouldAcceptRemoteMatch(remoteState, current, false)) return prev;
         const updated = [...prev];
         updated[idx] = remoteState;
         saveAllMatches(updated);
@@ -316,7 +353,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       });
 
       // Apply remote update to current match
-      if (data.matchId === match.id) {
+      if (data.matchId === matchRef.current.id) {
+        const local = normalizeMatchState(matchRef.current);
+        if (!shouldAcceptRemoteMatch(remoteState, local, isLocalAuthoritativeWindow())) {
+          return;
+        }
         lastSocketUpdateRef.current = Date.now();
         setMatch(remoteState);
         console.log('[CricLive] Socket update received — score:', remoteState.scoreA?.runs + '/' + remoteState.scoreA?.overs + '.' + remoteState.scoreA?.balls);
@@ -326,9 +367,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     const unsubList = onMatchesUpdated(() => {
       // Refresh match list from API
       fetchMatches().then(matches => {
-        const states = matches.map((m: { state: MatchState }) => m.state);
-        setAllMatches(states);
-        saveAllMatches(states);
+        const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
+        setAllMatches(prev => {
+          const merged = mergeMatchesByVersion(prev, states);
+          saveAllMatches(merged);
+          return merged;
+        });
       }).catch(() => { /* ignore */ });
     });
 
@@ -342,9 +386,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Initial fetch
     fetchMatches().then(matches => {
-      const states = matches.map((m: { state: MatchState }) => m.state);
-      setAllMatches(states);
-      saveAllMatches(states);
+      const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
+      setAllMatches(prev => {
+        const merged = mergeMatchesByVersion(prev, states);
+        saveAllMatches(merged);
+        return merged;
+      });
       console.log('[CricLive] Initial fetch: loaded', states.length, 'matches');
     }).catch((err) => {
       console.error('[CricLive] Initial fetch failed:', err);
@@ -357,9 +404,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       // Only refresh all matches list if socket hasn't been active recently
       if (!socketFresh) {
         fetchMatches().then(matches => {
-          const states = matches.map((m: { state: MatchState }) => m.state);
-          setAllMatches(states);
-          saveAllMatches(states);
+          const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
+          setAllMatches(prev => {
+            const merged = mergeMatchesByVersion(prev, states);
+            saveAllMatches(merged);
+            return merged;
+          });
         }).catch((err) => {
           console.error('[CricLive] Poll fetch failed:', err);
         });
@@ -367,11 +417,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
       // Refresh current match unless this tab is actively doing local scoring.
       const currentId = matchIdRef.current;
-      const allowRemoteRefresh = !isActiveScoringSession();
+      const allowRemoteRefresh = !isLocalAuthoritativeWindow();
       if (currentId && allowRemoteRefresh && !socketFresh) {
         fetchMatch(currentId).then(remoteState => {
-          const remote = remoteState as MatchState;
-          setMatch(remote);
+          const remote = normalizeMatchState(remoteState as MatchState);
+          const local = normalizeMatchState(matchRef.current);
+          if (shouldAcceptRemoteMatch(remote, local, isLocalAuthoritativeWindow())) {
+            setMatch(remote);
+          }
           console.log('[CricLive] Poll fallback applied — no recent socket data');
         }).catch((err) => {
           console.error('[CricLive] Poll match fetch failed:', err);
@@ -387,15 +440,19 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === MATCH_STORAGE_KEY && e.newValue) {
           try {
-            const incomingMatch = JSON.parse(e.newValue) as MatchState;
+            const incomingMatch = normalizeMatchState(JSON.parse(e.newValue) as MatchState);
             const isSameMatch = incomingMatch.id === matchIdRef.current;
-            if (!(isSameMatch && isActiveScoringSession())) {
+            const local = normalizeMatchState(matchRef.current);
+            if (!isSameMatch || shouldAcceptRemoteMatch(incomingMatch, local, isLocalAuthoritativeWindow())) {
               setMatch(incomingMatch);
             }
           } catch { /* ignore */ }
       }
       if (e.key === ALL_MATCHES_KEY && e.newValue) {
-        try { setAllMatches(JSON.parse(e.newValue) as MatchState[]); } catch { /* ignore */ }
+        try {
+          const incoming = (JSON.parse(e.newValue) as MatchState[]).map(normalizeMatchState);
+          setAllMatches(prev => mergeMatchesByVersion(prev, incoming));
+        } catch { /* ignore */ }
       }
     };
     window.addEventListener('storage', handleStorageChange);
@@ -436,6 +493,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       teamA: { name: teamAName, players: teamAPlayers },
       teamB: { name: teamBName, players: teamBPlayers },
       admins: creatorId ? [creatorId] : [],
+      syncVersion: 1,
+      updatedAtMs: Date.now(),
     };
     setMatchLocal(newMatch);
     setAllMatches(prev => {
@@ -475,9 +534,13 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     const requestMutationId = localMutationIdRef.current;
     fetchMatch(matchId).then((state: MatchState) => {
       if (localMutationIdRef.current !== requestMutationId || matchIdRef.current !== matchId) return;
-      setMatch(state);
+      const remote = normalizeMatchState(state);
+      const local = normalizeMatchState(matchRef.current);
+      if (shouldAcceptRemoteMatch(remote, local, isLocalAuthoritativeWindow())) {
+        setMatch(remote);
+      }
     }).catch(() => { /* use local version */ });
-  }, [allMatches]);
+  }, [allMatches, isLocalAuthoritativeWindow]);
 
   const addPlayer = useCallback((team: 'A' | 'B', name: string) => {
     setMatchLocal(prev => {
