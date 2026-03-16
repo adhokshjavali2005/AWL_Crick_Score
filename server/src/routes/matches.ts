@@ -7,6 +7,16 @@ import { broadcastMatchUpdate, broadcastMatchCreated, broadcastMatchListUpdate }
 const router = Router();
 const prisma = new PrismaClient();
 
+async function ensureTeamsExist(teamNames: string[]) {
+  const names = Array.from(new Set(teamNames.map(n => n.trim()).filter(Boolean)));
+  if (names.length === 0) return;
+
+  await prisma.team.createMany({
+    data: names.map(name => ({ name })),
+    skipDuplicates: true,
+  });
+}
+
 /**
  * GET /api/matches — List active matches (public)
  */
@@ -75,6 +85,8 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       },
     });
 
+    await ensureTeamsExist([state.teamA?.name || '', state.teamB?.name || '']);
+
     broadcastMatchCreated(state);
     broadcastMatchListUpdate();
     res.status(201).json(match.state);
@@ -133,6 +145,8 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
         teamBName: state.teamB?.name || '',
       },
     });
+
+    await ensureTeamsExist([state.teamA?.name || '', state.teamB?.name || '']);
 
     broadcastMatchUpdate(matchId, state);
     // Refresh LiveMatches list only when list metadata actually changes.

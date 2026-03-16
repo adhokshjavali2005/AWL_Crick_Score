@@ -11,11 +11,11 @@ const prisma = new PrismaClient();
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const teams = await prisma.teamPlayers.findMany({
-      orderBy: { teamName: 'asc' },
-      select: { teamName: true },
+    const teams = await prisma.team.findMany({
+      orderBy: { name: 'asc' },
+      select: { name: true },
     });
-    res.json(teams.map(t => t.teamName));
+    res.json(teams.map(t => t.name));
   } catch (error) {
     console.error('Error listing teams:', error);
     res.status(500).json({ error: 'Failed to list teams' });
@@ -43,12 +43,22 @@ router.get('/:name/players', async (req, res) => {
  */
 router.put('/:name/players', requireAuth, async (req: Request, res: Response) => {
   try {
-    const teamName = req.params.name as string;
+    const teamName = (req.params.name as string).trim();
     const { players } = req.body;
+    if (!teamName) {
+      res.status(400).json({ error: 'Team name is required' });
+      return;
+    }
     if (!Array.isArray(players)) {
       res.status(400).json({ error: 'Players array is required' });
       return;
     }
+
+    await prisma.team.upsert({
+      where: { name: teamName },
+      create: { name: teamName },
+      update: {},
+    });
 
     const team = await prisma.teamPlayers.upsert({
       where: { teamName },
