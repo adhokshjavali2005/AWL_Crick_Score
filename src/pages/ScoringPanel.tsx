@@ -12,8 +12,10 @@ const ScoringPanelContent = () => {
   const { currentBattingScore, currentBowlingScore } = useMatch();
   const disabled = match.status !== 'live';
 
-  // Calculate target: first innings score + 1 (bowling team scored in 1st innings)
-  const target = match.currentInnings === 2 ? currentBowlingScore.runs + 1 : null;
+  // Target is always based on the first innings total.
+  // At innings break, first innings = current batting score.
+  // During second innings, first innings = current bowling score.
+  const target = (match.currentInnings === 1 ? currentBattingScore.runs : currentBowlingScore.runs) + 1;
 
   // Remove auto-redirect - let user undo if needed
 
@@ -46,15 +48,13 @@ const ScoringPanelContent = () => {
           </div>
 
           {/* Target Display */}
-          {target !== null && (
-            <div className="glass-card p-4 space-y-2">
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Target Score</p>
-              <p className="text-4xl font-bold text-primary">{target}</p>
-              <p className="text-xs text-muted-foreground">
-                {match.battingTeam === 'A' ? (match.teamB.name || 'Team B') : (match.teamA.name || 'Team A')} needs {target} runs to win
-              </p>
-            </div>
-          )}
+          <div className="glass-card p-4 space-y-2">
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">Target Score</p>
+            <p className="text-4xl font-bold text-primary">{target}</p>
+            <p className="text-xs text-muted-foreground">
+              {match.battingTeam === 'A' ? (match.teamB.name || 'Team B') : (match.teamA.name || 'Team A')} needs {target} runs to win
+            </p>
+          </div>
 
           <p className="text-sm text-muted-foreground">
             You'll need to select striker, non-striker, and bowler in the admin panel.

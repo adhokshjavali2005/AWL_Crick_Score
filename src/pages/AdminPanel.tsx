@@ -154,6 +154,11 @@ const AdminPanelContent = () => {
 
   const battingPlayers = match.battingTeam === 'A' ? match.teamA.players : match.teamB.players;
   const bowlingPlayers = match.battingTeam === 'A' ? match.teamB.players : match.teamA.players;
+  const firstInningsRuns = match.currentInnings === 1
+    ? (match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs)
+    : (match.battingTeam === 'A' ? match.scoreB.runs : match.scoreA.runs);
+  const targetScore = firstInningsRuns + 1;
+  const targetIsBright = match.status === 'inningsBreak' || match.currentInnings === 2 || match.status === 'ended';
 
   const isScoreReady = !!(match.strikerId && match.nonStrikerId && match.bowlerId);
 
@@ -180,6 +185,18 @@ const AdminPanelContent = () => {
             </span>
           )
         )}
+      </div>
+
+      {/* Target Score */}
+      <div className={`glass-card p-4 transition-all ${targetIsBright ? 'opacity-100 ring-1 ring-primary/40' : 'opacity-40'}`}>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Target Score</p>
+        <div className="flex items-end gap-2">
+          <span className={`text-3xl font-bold ${targetIsBright ? 'text-primary' : 'text-muted-foreground'}`}>{targetScore}</span>
+          <span className="text-xs text-muted-foreground mb-1">runs to win</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {targetIsBright ? 'Active for second innings' : 'Will activate after innings break'}
+        </p>
       </div>
 
       {/* Match Controls */}
