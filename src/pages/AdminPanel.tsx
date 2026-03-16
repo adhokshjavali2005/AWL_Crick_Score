@@ -163,6 +163,13 @@ const AdminPanelContent = () => {
         : match.status === 'ended'
           ? 'Match Complete'
           : 'Match Setup';
+  const firstInningsRuns = match.currentInnings === 1
+    ? (match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs)
+    : (match.battingTeam === 'A' ? match.scoreB.runs : match.scoreA.runs);
+  const targetScore = firstInningsRuns + 1;
+  const chasingRuns = match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs;
+  const runsToWin = Math.max(0, targetScore - chasingRuns);
+  const showRunsToWin = match.currentInnings === 2 || match.status === 'ended';
 
   const isScoreReady = !!(match.strikerId && match.nonStrikerId && match.bowlerId);
 
@@ -228,6 +235,20 @@ const AdminPanelContent = () => {
           {match.status === 'inningsBreak' && (
             <p className="text-xs text-muted-foreground">Innings Break — go to Score panel to start 2nd innings</p>
           )}
+        </div>
+      </div>
+
+      {/* Target Score */}
+      <div className="glass-card p-4">
+        <div className="flex items-end justify-between gap-6">
+          <div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Target</p>
+            <p className="mt-1 text-4xl leading-none font-bold text-foreground">{targetScore}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Runs to win</p>
+            <p className="mt-1 text-4xl leading-none font-bold text-primary">{showRunsToWin ? runsToWin : targetScore}</p>
+          </div>
         </div>
       </div>
 
