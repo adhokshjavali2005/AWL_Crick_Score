@@ -177,24 +177,35 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const isAdminRef = useRef<boolean>(false);
   const isLocalChangeRef = useRef<boolean>(false);  // true when change came from local user action
   const localStorageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const socketEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const matchRef = useRef<MatchState>(match); // latest match for deferred operations
   const lastSocketUpdateRef = useRef<number>(0);  // timestamp of last socket update received
+  const localMutationIdRef = useRef<number>(0);
+  const lastLocalMutationAtRef = useRef<number>(0);
+
+  const scheduleSocketEmit = useCallback((next: MatchState) => {
+    if (!next.id || next.admins.length === 0) return;
+    if (socketEmitTimerRef.current) clearTimeout(socketEmitTimerRef.current);
+    socketEmitTimerRef.current = setTimeout(() => {
+      emitMatchUpdate(next.id, next);
+    }, 40);
+  }, []);
 
   // Wrapper for setMatch that marks the change as local (from user action)
   // Also emits socket update SYNCHRONOUSLY (no effect delay) for zero-lag spectator updates
   const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
     isLocalChangeRef.current = true;
+    localMutationIdRef.current += 1;
+    lastLocalMutationAtRef.current = Date.now();
     setMatch(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
       // Synchronously update isAdminRef so poll/socket guards work immediately
       isAdminRef.current = user ? next.admins.includes(user.id) : false;
-      // Emit socket update immediately (inside setState callback = before next render)
-      if (next.id && next.admins.length > 0) {
-        emitMatchUpdate(next.id, next);
-      }
+      // Batch socket broadcasts during rapid scoring bursts.
+      scheduleSocketEmit(next);
       return next;
     });
-  }, [user]);
+  }, [scheduleSocketEmit, user]);
 
   // Keep refs in sync
   useEffect(() => {
@@ -223,11 +234,10 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           if (idx === -1) return prev;
           const updated = [...prev];
           updated[idx] = matchRef.current;
-          saveAllMatches(updated);
           return updated;
         });
       }
-    }, 50); // 50ms debounce — coalesces rapid clicks
+    }, 300); // Reduce main-thread storage churn during rapid scoring bursts
 
     // Sync to API — only for LOCAL changes by admin (socket already emitted in setMatchLocal)
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
@@ -252,17 +262,20 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           }).catch((err) => {
             console.error('[CricLive] API sync failed:', err);
           });
-        }, 100);
+        }, 180);
       }
     }
     // Reset the local change flag
     isLocalChangeRef.current = false;
+  }, [match]);
 
+  useEffect(() => {
     return () => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
+      if (socketEmitTimerRef.current) clearTimeout(socketEmitTimerRef.current);
     };
-  }, [match]);
+  }, []);
 
   // Socket.io: join/leave match room and listen for real-time updates
   useEffect(() => {
@@ -316,10 +329,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     // Initial fetch
     fetchMatches().then(matches => {
       const states = matches.map((m: { state: MatchState }) => m.state);
-      if (states.length > 0) {
-        setAllMatches(states);
-        saveAllMatches(states);
-      }
+      setAllMatches(states);
+      saveAllMatches(states);
       console.log('[CricLive] Initial fetch: loaded', states.length, 'matches');
     }).catch((err) => {
       console.error('[CricLive] Initial fetch failed:', err);
@@ -357,7 +368,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === MATCH_STORAGE_KEY && e.newValue) {
-        try { setMatch(JSON.parse(e.newValue) as MatchState); } catch { /* ignore */ }
+          try {
+            const incomingMatch = JSON.parse(e.newValue) as MatchState;
+            const isEditingCurrentMatch = isAdminRef.current && incomingMatch.id === matchIdRef.current;
+            const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 2000;
+            if (!isEditingCurrentMatch && !localChangeIsFresh) {
+              setMatch(incomingMatch);
+            }
+          } catch { /* ignore */ }
       }
       if (e.key === ALL_MATCHES_KEY && e.newValue) {
         try { setAllMatches(JSON.parse(e.newValue) as MatchState[]); } catch { /* ignore */ }
@@ -437,7 +455,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       setMatch(found);
     }
     // Also fetch from API for latest state
+    const requestMutationId = localMutationIdRef.current;
     fetchMatch(matchId).then((state: MatchState) => {
+      if (localMutationIdRef.current !== requestMutationId || matchIdRef.current !== matchId) return;
       setMatch(state);
     }).catch(() => { /* use local version */ });
   }, [allMatches]);
