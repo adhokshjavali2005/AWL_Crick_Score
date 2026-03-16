@@ -188,7 +188,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     if (socketEmitTimerRef.current) clearTimeout(socketEmitTimerRef.current);
     socketEmitTimerRef.current = setTimeout(() => {
       emitMatchUpdate(next.id, next);
-    }, 40);
+    }, 80);
   }, []);
 
   const isActiveScoringSession = useCallback(() => {
@@ -268,7 +268,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           }).catch((err) => {
             console.error('[CricLive] API sync failed:', err);
           });
-        }, 180);
+        }, 500);
       }
     }
     // Reset the local change flag
@@ -297,6 +297,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     const unsubUpdate = onMatchUpdate((data: { matchId: string; state: unknown }) => {
       const remoteState = data.state as MatchState;
 
+      // Skip echoes of our own scoring entirely — avoids double/triple re-renders
+      // from both the socket relay and the API broadcast on the scorer's device.
+      if (data.matchId === match.id && isActiveScoringSession()) {
+        return;
+      }
+
       // Update allMatches instantly (for LiveMatches page)
       setAllMatches(prev => {
         const idx = prev.findIndex(m => m.id === data.matchId);
@@ -307,11 +313,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         return updated;
       });
 
-      // Apply remote update unless this tab is actively performing local scoring actions.
+      // Apply remote update to current match
       if (data.matchId === match.id) {
-        if (isActiveScoringSession()) {
-          return;
-        }
         lastSocketUpdateRef.current = Date.now();
         setMatch(remoteState);
         console.log('[CricLive] Socket update received — score:', remoteState.scoreA?.runs + '/' + remoteState.scoreA?.overs + '.' + remoteState.scoreA?.balls);
