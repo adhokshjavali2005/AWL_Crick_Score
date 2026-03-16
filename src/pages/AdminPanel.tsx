@@ -154,13 +154,22 @@ const AdminPanelContent = () => {
 
   const battingPlayers = match.battingTeam === 'A' ? match.teamA.players : match.teamB.players;
   const bowlingPlayers = match.battingTeam === 'A' ? match.teamB.players : match.teamA.players;
+  const pageTitle = match.status === 'live'
+    ? 'Live Match Control'
+    : match.status === 'paused'
+      ? 'Paused Match Control'
+      : match.status === 'inningsBreak'
+        ? 'Innings Break Control'
+        : match.status === 'ended'
+          ? 'Match Complete'
+          : 'Match Setup';
 
   const isScoreReady = !!(match.strikerId && match.nonStrikerId && match.bowlerId);
 
   return (
     <div className="space-y-6 max-w-lg mx-auto px-4 py-6 animate-fade-in">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">Admin Panel</h1>
+        <h1 className="text-xl font-bold text-foreground">{pageTitle}</h1>
         {(match.status === 'live' || match.status === 'inningsBreak') && (
           isScoreReady ? (
             <Link
