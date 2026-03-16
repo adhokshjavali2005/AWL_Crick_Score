@@ -159,6 +159,8 @@ const AdminPanelContent = () => {
     : (match.battingTeam === 'A' ? match.scoreB.runs : match.scoreA.runs);
   const targetScore = firstInningsRuns + 1;
   const targetIsBright = match.status === 'inningsBreak' || match.currentInnings === 2 || match.status === 'ended';
+  const chasingRuns = match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs;
+  const runsToWin = match.currentInnings === 2 ? Math.max(0, targetScore - chasingRuns) : targetScore;
 
   const isScoreReady = !!(match.strikerId && match.nonStrikerId && match.bowlerId);
 
@@ -228,41 +230,17 @@ const AdminPanelContent = () => {
       </div>
 
       {/* Target Score */}
-      <div
-        className={`relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 ${
-          targetIsBright
-            ? 'bg-gradient-to-br from-primary/20 via-primary/10 to-background border-primary/40 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_12px_36px_rgba(34,197,94,0.22)]'
-            : 'bg-gradient-to-br from-secondary/70 to-secondary/40 border-border/60 opacity-75'
-        }`}
-      >
-        <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-primary/20 blur-2xl" />
-        <div className="absolute -left-8 -bottom-10 h-24 w-24 rounded-full bg-accent/20 blur-2xl" />
-
-        <div className="relative flex items-start justify-between gap-4">
+      <div className="rounded-2xl border border-border/70 bg-gradient-to-r from-slate-900/65 via-slate-900/35 to-slate-900/65 px-6 py-5">
+        <div className="flex items-end justify-between gap-6">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">Target Score</p>
-            <div className="flex items-end gap-2">
-              <span className={`text-5xl leading-none font-extrabold ${targetIsBright ? 'text-primary' : 'text-foreground/80'}`}>{targetScore}</span>
-              <span className="text-xs text-muted-foreground mb-1.5">runs</span>
-            </div>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Target</p>
+            <p className={`mt-1 text-4xl leading-none font-bold ${targetIsBright ? 'text-foreground' : 'text-foreground/75'}`}>{targetScore}</p>
           </div>
-
-          <span
-            className={`px-3 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide ${
-              targetIsBright
-                ? 'bg-primary/20 text-primary border border-primary/40'
-                : 'bg-secondary text-muted-foreground border border-border'
-            }`}
-          >
-            {targetIsBright ? 'Live Target' : 'Pending'}
-          </span>
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Runs to win</p>
+            <p className={`mt-1 text-4xl leading-none font-bold ${targetIsBright ? 'text-primary' : 'text-foreground/75'}`}>{runsToWin}</p>
+          </div>
         </div>
-
-        <p className="relative mt-3 text-xs text-muted-foreground">
-          {targetIsBright
-            ? `${match.battingTeam === 'A' ? (match.teamB.name || 'Team B') : (match.teamA.name || 'Team A')} need ${targetScore} runs to win.`
-            : 'Target activates automatically at innings break.'}
-        </p>
       </div>
 
       {/* Total Overs */}
