@@ -111,6 +111,7 @@ const initialMatch: MatchState = {
 };
 
 const MATCH_STORAGE_KEY = 'criclive_match_state';
+const MATCH_BACKUP_KEY = 'criclive_match_state_backup';
 const ALL_MATCHES_KEY = 'criclive_all_matches';
 const TEAM_PLAYERS_KEY = 'criclive_team_players';
 
@@ -123,6 +124,31 @@ const normalizeMatchState = (state: MatchState): MatchState => ({
   syncVersion: getSyncVersion(state),
   updatedAtMs: typeof state.updatedAtMs === 'number' ? state.updatedAtMs : 0,
 });
+
+const saveMatchBackup = (state: MatchState) => {
+  try {
+    localStorage.setItem(MATCH_BACKUP_KEY, JSON.stringify(normalizeMatchState(state)));
+  } catch {
+    // ignore storage write errors
+  }
+};
+
+const loadBestPersistedMatch = (): MatchState | null => {
+  try {
+    const primaryRaw = localStorage.getItem(MATCH_STORAGE_KEY);
+    const backupRaw = localStorage.getItem(MATCH_BACKUP_KEY);
+    const primary = primaryRaw ? normalizeMatchState(JSON.parse(primaryRaw) as MatchState) : null;
+    const backup = backupRaw ? normalizeMatchState(JSON.parse(backupRaw) as MatchState) : null;
+
+    if (!primary && !backup) return null;
+    if (!primary) return backup;
+    if (!backup) return primary;
+
+    return shouldAcceptRemoteMatch(backup, primary, false) ? backup : primary;
+  } catch {
+    return null;
+  }
+};
 
 const shouldAcceptRemoteMatch = (remote: MatchState, current: MatchState, localWindowActive: boolean): boolean => {
   const remoteVersion = getSyncVersion(remote);
@@ -179,9 +205,9 @@ const getAllTeamNames = (): string[] => {
 
 const loadMatchFromStorage = (): MatchState => {
   try {
-    const stored = localStorage.getItem(MATCH_STORAGE_KEY);
-    if (stored) {
-      return normalizeMatchState(JSON.parse(stored) as MatchState);
+    const recovered = loadBestPersistedMatch();
+    if (recovered) {
+      return recovered;
     }
   } catch (e) {
     // ignore parse errors
@@ -248,6 +274,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         syncVersion: Math.max(getSyncVersion(prev) + 1, getSyncVersion(nextBase) + 1),
         updatedAtMs: Date.now(),
       };
+      // Immediate backup so selections/scoring survive crashes or transient rollback bugs.
+      saveMatchBackup(next);
       // Synchronously update isAdminRef so poll/socket guards work immediately
       isAdminRef.current = user ? next.admins.includes(user.id) : false;
       // Batch socket broadcasts during rapid scoring bursts.
@@ -275,6 +303,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
     localStorageTimerRef.current = setTimeout(() => {
       localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(matchRef.current));
+      saveMatchBackup(matchRef.current);
 
       // Update allMatches locally (also deferred)
       if (matchRef.current.id) {
@@ -323,6 +352,19 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
       if (socketEmitTimerRef.current) clearTimeout(socketEmitTimerRef.current);
+    };
+  }, []);
+
+  // Emergency durability: persist last known good state on runtime failures.
+  useEffect(() => {
+    const persistOnFailure = () => {
+      saveMatchBackup(matchRef.current);
+    };
+    window.addEventListener('error', persistOnFailure);
+    window.addEventListener('unhandledrejection', persistOnFailure);
+    return () => {
+      window.removeEventListener('error', persistOnFailure);
+      window.removeEventListener('unhandledrejection', persistOnFailure);
     };
   }, []);
 
