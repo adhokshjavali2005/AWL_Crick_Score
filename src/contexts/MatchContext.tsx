@@ -242,6 +242,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const socketEmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const matchRef = useRef<MatchState>(match); // latest match for deferred operations
   const lastSocketUpdateRef = useRef<number>(0);  // timestamp of last socket update received
+  const lastFullListSyncAtRef = useRef<number>(0);
   const localMutationIdRef = useRef<number>(0);
   const lastLocalMutationAtRef = useRef<number>(0);
 
@@ -434,6 +435,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         saveAllMatches(merged);
         return merged;
       });
+      lastFullListSyncAtRef.current = Date.now();
       console.log('[CricLive] Initial fetch: loaded', states.length, 'matches');
     }).catch((err) => {
       console.error('[CricLive] Initial fetch failed:', err);
@@ -442,9 +444,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     // Poll every 8s as fallback for Socket.io (socket is primary update path now)
     const interval = setInterval(() => {
       const socketFresh = Date.now() - lastSocketUpdateRef.current < 8000; // socket delivered in last 8s
+      const forceListSync = Date.now() - lastFullListSyncAtRef.current > 30000; // catch external DB edits/deletes
 
-      // Only refresh all matches list if socket hasn't been active recently
-      if (!socketFresh) {
+      // Refresh list if socket is stale OR at periodic consistency checkpoint.
+      // This keeps manual Supabase deletes in sync without per-ball API load.
+      if (!socketFresh || forceListSync) {
         fetchMatches().then(matches => {
           const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
           setAllMatches(prev => {
@@ -452,6 +456,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
             saveAllMatches(merged);
             return merged;
           });
+          lastFullListSyncAtRef.current = Date.now();
         }).catch((err) => {
           console.error('[CricLive] Poll fetch failed:', err);
         });
