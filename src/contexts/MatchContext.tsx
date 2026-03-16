@@ -511,18 +511,25 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   // Enhanced getAllTeamNames that also fetches from API
   const getAllTeamNamesWithApi = useCallback((): string[] => {
     const localNames = getAllTeamNames();
-    // Fire-and-forget API fetch to enrich localStorage cache
+    // Fire-and-forget API fetch to make cache match server truth (including deletions).
     fetchTeamNames().then((apiNames: string[]) => {
-      if (apiNames.length > 0) {
-        const merged = Array.from(new Set([...localNames, ...apiNames])).sort();
-        // Update localStorage with merged set
-        const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
-        const teamPlayers = stored ? JSON.parse(stored) as Record<string, Player[]> : {};
-        for (const name of apiNames) {
-          if (!teamPlayers[name]) teamPlayers[name] = [];
+      const serverSet = new Set(apiNames);
+      const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
+      const teamPlayers = stored ? JSON.parse(stored) as Record<string, Player[]> : {};
+
+      // Remove local-only teams if they no longer exist in DB.
+      for (const name of Object.keys(teamPlayers)) {
+        if (!serverSet.has(name)) {
+          delete teamPlayers[name];
         }
-        localStorage.setItem(TEAM_PLAYERS_KEY, JSON.stringify(teamPlayers));
       }
+
+      // Ensure server teams exist in local cache.
+      for (const name of apiNames) {
+        if (!teamPlayers[name]) teamPlayers[name] = [];
+      }
+
+      localStorage.setItem(TEAM_PLAYERS_KEY, JSON.stringify(teamPlayers));
     }).catch(() => { /* ignore */ });
     return localNames;
   }, []);
@@ -559,8 +566,13 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     ]).then(([apiPlayersA, apiPlayersB]) => {
       setMatch(prev => {
         if (prev.id !== newMatch.id) return prev;
-        const pA = (apiPlayersA && apiPlayersA.length > 0) ? apiPlayersA : prev.teamA.players;
-        const pB = (apiPlayersB && apiPlayersB.length > 0) ? apiPlayersB : prev.teamB.players;
+        // If API returns an empty list, respect it (team/player deletion in DB).
+        const pA = Array.isArray(apiPlayersA) ? apiPlayersA : prev.teamA.players;
+        const pB = Array.isArray(apiPlayersB) ? apiPlayersB : prev.teamB.players;
+
+        if (teamAName) saveTeamPlayers(teamAName, pA);
+        if (teamBName) saveTeamPlayers(teamBName, pB);
+
         return {
           ...prev,
           teamA: { ...prev.teamA, players: pA },
