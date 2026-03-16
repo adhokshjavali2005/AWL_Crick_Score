@@ -6,6 +6,7 @@ import { broadcastMatchUpdate, broadcastMatchCreated, broadcastMatchListUpdate }
 
 const router = Router();
 const prisma = new PrismaClient();
+let teamsTableReadyPromise: Promise<void> | null = null;
 
 function extractTeamName(team: unknown): string {
   if (!team || typeof team !== 'object') return '';
@@ -13,7 +14,37 @@ function extractTeamName(team: unknown): string {
   return typeof name === 'string' ? name : '';
 }
 
+async function ensureTeamsTableShape() {
+  if (!teamsTableReadyPromise) {
+    teamsTableReadyPromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Teams" (
+          "id" TEXT NOT NULL,
+          "teamName" TEXT NOT NULL,
+          "players" JSONB NOT NULL,
+          "playerNames" JSONB NOT NULL DEFAULT '[]'::jsonb,
+          "updatedAt" TIMESTAMP(3) NOT NULL,
+          CONSTRAINT "Teams_pkey" PRIMARY KEY ("id")
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "Teams_teamName_key" ON "Teams"("teamName")
+      `);
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "Teams"
+        ADD COLUMN IF NOT EXISTS "playerNames" JSONB NOT NULL DEFAULT '[]'::jsonb
+      `);
+    })().catch((error) => {
+      teamsTableReadyPromise = null;
+      throw error;
+    });
+  }
+
+  await teamsTableReadyPromise;
+}
+
 async function ensureTeamsExist(teamNames: string[]) {
+  await ensureTeamsTableShape();
   const names = Array.from(new Set(teamNames.map(n => n.trim()).filter(Boolean)));
   if (names.length === 0) return;
 
