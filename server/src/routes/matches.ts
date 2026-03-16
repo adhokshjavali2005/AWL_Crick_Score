@@ -7,6 +7,12 @@ import { broadcastMatchUpdate, broadcastMatchCreated, broadcastMatchListUpdate }
 const router = Router();
 const prisma = new PrismaClient();
 
+function extractTeamName(team: unknown): string {
+  if (!team || typeof team !== 'object') return '';
+  const name = (team as { name?: unknown }).name;
+  return typeof name === 'string' ? name : '';
+}
+
 async function ensureTeamsExist(teamNames: string[]) {
   const names = Array.from(new Set(teamNames.map(n => n.trim()).filter(Boolean)));
   if (names.length === 0) return;
@@ -74,18 +80,21 @@ router.post('/', requireAuth, async (req: AuthRequest, res) => {
       return;
     }
 
+    const teamAName = extractTeamName(state.teamA);
+    const teamBName = extractTeamName(state.teamB);
+
     const match = await prisma.match.create({
       data: {
         id: state.id,
         state: state,
         status: state.status || 'setup',
-        teamAName: state.teamA?.name || '',
-        teamBName: state.teamB?.name || '',
+        teamAName,
+        teamBName,
         createdBy: req.userId,
       },
     });
 
-    await ensureTeamsExist([state.teamA?.name || '', state.teamB?.name || '']);
+    await ensureTeamsExist([teamAName, teamBName]);
 
     broadcastMatchCreated(state);
     broadcastMatchListUpdate();
@@ -122,8 +131,8 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     const nextStatus = (state.status || 'idle') as string;
     const previousTeamAName = (existing.teamAName || existingState.teamAName || existingState.teamA?.name || '') as string;
     const previousTeamBName = (existing.teamBName || existingState.teamBName || existingState.teamB?.name || '') as string;
-    const nextTeamAName = (state.teamA?.name || '') as string;
-    const nextTeamBName = (state.teamB?.name || '') as string;
+    const nextTeamAName = extractTeamName(state.teamA);
+    const nextTeamBName = extractTeamName(state.teamB);
 
     const admins = (existingState.admins || []) as string[];
     const isAdmin = admins.includes(req.userId!);
@@ -141,12 +150,12 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
       data: {
         state: state,
         status: state.status || 'idle',
-        teamAName: state.teamA?.name || '',
-        teamBName: state.teamB?.name || '',
+        teamAName: nextTeamAName,
+        teamBName: nextTeamBName,
       },
     });
 
-    await ensureTeamsExist([state.teamA?.name || '', state.teamB?.name || '']);
+    await ensureTeamsExist([nextTeamAName, nextTeamBName]);
 
     broadcastMatchUpdate(matchId, state);
     // Refresh LiveMatches list only when list metadata actually changes.
