@@ -191,6 +191,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     }, 40);
   }, []);
 
+  const isActiveScoringSession = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+    const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 1200;
+    return isAdminRef.current && localChangeIsFresh && window.location.pathname.includes('/admin/scoring');
+  }, []);
+
   // Wrapper for setMatch that marks the change as local (from user action)
   // Also emits socket update SYNCHRONOUSLY (no effect delay) for zero-lag spectator updates
   const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
@@ -303,8 +309,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
       // Apply remote update unless this tab is actively performing local scoring actions.
       if (data.matchId === match.id) {
-        const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 2000;
-        if (isAdminRef.current && localChangeIsFresh) {
+        if (isActiveScoringSession()) {
           return;
         }
         lastSocketUpdateRef.current = Date.now();
@@ -354,8 +359,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       // Refresh current match unless this tab is actively doing local scoring.
       const currentId = matchIdRef.current;
       const socketFresh = Date.now() - lastSocketUpdateRef.current < 5000; // socket delivered in last 5s
-      const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 2000;
-      const allowRemoteRefresh = !isAdminRef.current || !localChangeIsFresh;
+      const allowRemoteRefresh = !isActiveScoringSession();
       if (currentId && allowRemoteRefresh && !socketFresh) {
         fetchMatch(currentId).then(remoteState => {
           const remote = remoteState as MatchState;
@@ -365,7 +369,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
       }
-    }, 5000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -376,9 +380,8 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       if (e.key === MATCH_STORAGE_KEY && e.newValue) {
           try {
             const incomingMatch = JSON.parse(e.newValue) as MatchState;
-            const isEditingCurrentMatch = isAdminRef.current && incomingMatch.id === matchIdRef.current;
-            const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 2000;
-            if (!isEditingCurrentMatch && !localChangeIsFresh) {
+            const isSameMatch = incomingMatch.id === matchIdRef.current;
+            if (!(isSameMatch && isActiveScoringSession())) {
               setMatch(incomingMatch);
             }
           } catch { /* ignore */ }
