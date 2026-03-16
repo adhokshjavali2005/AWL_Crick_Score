@@ -321,16 +321,18 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     // Sync to API — only for LOCAL changes by admin (socket already emitted in setMatchLocal)
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
       const isCriticalChange = match.status === 'ended' || match.status === 'inningsBreak';
+      const isConfigPhase = match.status === 'setup' || match.status === 'paused';
+      const shouldSyncImmediately = isCriticalChange || isConfigPhase;
 
       // API sync — instant for critical changes, 100ms debounce for scoring
       if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-      if (isCriticalChange) {
+      if (shouldSyncImmediately) {
         // Flush localStorage immediately for critical changes
         if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
         localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(match));
 
         updateMatchAPI(match.id, match).then(() => {
-          console.log('[CricLive] Synced to API (critical):', match.status);
+          console.log('[CricLive] Synced to API (immediate):', match.status);
         }).catch((err) => {
           console.error('[CricLive] API sync failed:', err);
         });
