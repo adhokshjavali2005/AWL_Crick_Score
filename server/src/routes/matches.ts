@@ -106,6 +106,13 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     }
 
     const existingState = existing.state as Record<string, unknown>;
+    const previousStatus = (existing.status || existingState.status || 'idle') as string;
+    const nextStatus = (state.status || 'idle') as string;
+    const previousTeamAName = (existing.teamAName || existingState.teamAName || existingState.teamA?.name || '') as string;
+    const previousTeamBName = (existing.teamBName || existingState.teamBName || existingState.teamB?.name || '') as string;
+    const nextTeamAName = (state.teamA?.name || '') as string;
+    const nextTeamBName = (state.teamB?.name || '') as string;
+
     const admins = (existingState.admins || []) as string[];
     const isAdmin = admins.includes(req.userId!);
     const isCreator = existing.createdBy === req.userId;
@@ -128,9 +135,13 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     });
 
     broadcastMatchUpdate(matchId, state);
-    // NOTE: broadcastMatchListUpdate intentionally omitted here — clients update
-    // allMatches in-place from the match-update socket event, so a full list
-    // re-fetch on every ball is unnecessary and floods the server.
+    // Refresh LiveMatches list only when list metadata actually changes.
+    // This keeps status changes (like live -> ended) accurate without per-ball load.
+    const statusChanged = previousStatus !== nextStatus;
+    const teamNamesChanged = previousTeamAName !== nextTeamAName || previousTeamBName !== nextTeamBName;
+    if (statusChanged || teamNamesChanged) {
+      broadcastMatchListUpdate();
+    }
     res.json(match.state);
   } catch (error) {
     console.error('Error updating match:', error);
