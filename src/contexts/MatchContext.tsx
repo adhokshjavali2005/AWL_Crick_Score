@@ -193,8 +193,10 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
   const isActiveScoringSession = useCallback(() => {
     if (typeof window === 'undefined') return false;
-    const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 1200;
-    return isAdminRef.current && localChangeIsFresh && window.location.pathname.includes('/admin/scoring');
+    // Keep local admin interactions (selection + scoring) authoritative briefly,
+    // so delayed socket/API echoes cannot roll back just-clicked values.
+    const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 4000;
+    return isAdminRef.current && localChangeIsFresh && window.location.pathname.includes('/admin');
   }, []);
 
   // Wrapper for setMatch that marks the change as local (from user action)
