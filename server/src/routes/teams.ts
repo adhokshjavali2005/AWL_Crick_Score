@@ -5,12 +5,43 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 const prisma = new PrismaClient();
+let teamsTableReadyPromise: Promise<void> | null = null;
+
+async function ensureTeamsTableShape() {
+  if (!teamsTableReadyPromise) {
+    teamsTableReadyPromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Teams" (
+          "id" TEXT NOT NULL,
+          "teamName" TEXT NOT NULL,
+          "players" JSONB NOT NULL,
+          "playerNames" JSONB NOT NULL DEFAULT '[]'::jsonb,
+          "updatedAt" TIMESTAMP(3) NOT NULL,
+          CONSTRAINT "Teams_pkey" PRIMARY KEY ("id")
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "Teams_teamName_key" ON "Teams"("teamName")
+      `);
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "Teams"
+        ADD COLUMN IF NOT EXISTS "playerNames" JSONB NOT NULL DEFAULT '[]'::jsonb
+      `);
+    })().catch((error) => {
+      teamsTableReadyPromise = null;
+      throw error;
+    });
+  }
+
+  await teamsTableReadyPromise;
+}
 
 /**
  * GET /api/teams — List all team names
  */
 router.get('/', async (_req: Request, res: Response) => {
   try {
+    await ensureTeamsTableShape();
     const [canonicalTeams, storedTeams] = await Promise.all([
       prisma.team.findMany({
         orderBy: { name: 'asc' },
@@ -37,6 +68,7 @@ router.get('/', async (_req: Request, res: Response) => {
  */
 router.get('/:name/players', async (req, res) => {
   try {
+    await ensureTeamsTableShape();
     const teamName = req.params.name as string;
     const [team, mirroredTeam] = await Promise.all([
       prisma.teamPlayers.findUnique({
@@ -58,6 +90,7 @@ router.get('/:name/players', async (req, res) => {
  */
 router.put('/:name/players', requireAuth, async (req: Request, res: Response) => {
   try {
+    await ensureTeamsTableShape();
     const teamName = (req.params.name as string).trim();
     const { players } = req.body;
     if (!teamName) {

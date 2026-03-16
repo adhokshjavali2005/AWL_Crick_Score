@@ -21,6 +21,18 @@ async function ensureTeamsExist(teamNames: string[]) {
     data: names.map(name => ({ name })),
     skipDuplicates: true,
   });
+
+  for (const name of names) {
+    await prisma.teamsStore.upsert({
+      where: { teamName: name },
+      create: {
+        teamName: name,
+        players: [],
+        playerNames: [],
+      },
+      update: {},
+    });
+  }
 }
 
 /**
