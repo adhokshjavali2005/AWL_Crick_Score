@@ -239,18 +239,20 @@ const AdminPanelContent = () => {
       </div>
 
       {/* Target Score */}
-      <div className="glass-card p-4">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Target</p>
-            <p className="mt-1 text-4xl leading-none font-bold text-foreground">{targetScore}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Runs to win</p>
-            <p className="mt-1 text-4xl leading-none font-bold text-primary">{showRunsToWin ? runsToWin : targetScore}</p>
+      {match.status !== 'setup' && (
+        <div className="glass-card p-4">
+          <div className="flex items-end justify-between gap-6">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Target</p>
+              <p className="mt-1 text-4xl leading-none font-bold text-foreground">{targetScore}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-muted-foreground">Runs to win</p>
+              <p className="mt-1 text-4xl leading-none font-bold text-primary">{showRunsToWin ? runsToWin : targetScore}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Total Overs */}
       {(match.status === 'setup' || match.status === 'paused') && (
