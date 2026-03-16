@@ -30,7 +30,6 @@ export interface TeamScore {
 
 export interface MatchState {
   id: string;
-  syncVersion?: number;
   status: MatchStatus;
   teamA: { name: string; players: Player[] };
   teamB: { name: string; players: Player[] };
@@ -86,7 +85,6 @@ const initialScore: TeamScore = { runs: 0, overs: 0, balls: 0 };
 
 const initialMatch: MatchState = {
   id: '',
-  syncVersion: 0,
   status: 'idle',
   teamA: { name: '', players: [] },
   teamB: { name: '', players: [] },
@@ -111,8 +109,6 @@ const initialMatch: MatchState = {
 const MATCH_STORAGE_KEY = 'criclive_match_state';
 const ALL_MATCHES_KEY = 'criclive_all_matches';
 const TEAM_PLAYERS_KEY = 'criclive_team_players';
-
-const getSyncVersion = (state: Partial<MatchState> | null | undefined): number => Number(state?.syncVersion ?? 0);
 
 const loadTeamPlayers = (teamName: string): Player[] => {
   try {
@@ -203,13 +199,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     lastLocalMutationAtRef.current = Date.now();
     setMatch(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
-      const nextVersion = Math.max(getSyncVersion(prev), getSyncVersion(next)) + 1;
-      const versionedNext: MatchState = { ...next, syncVersion: nextVersion };
       // Synchronously update isAdminRef so poll/socket guards work immediately
-      isAdminRef.current = user ? versionedNext.admins.includes(user.id) : false;
+      isAdminRef.current = user ? next.admins.includes(user.id) : false;
       // Batch socket broadcasts during rapid scoring bursts.
-      scheduleSocketEmit(versionedNext);
-      return versionedNext;
+      scheduleSocketEmit(next);
+      return next;
     });
   }, [scheduleSocketEmit, user]);
 
@@ -301,8 +295,6 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       setAllMatches(prev => {
         const idx = prev.findIndex(m => m.id === data.matchId);
         if (idx === -1) return prev;
-        const current = prev[idx];
-        if (getSyncVersion(remoteState) < getSyncVersion(current)) return prev;
         const updated = [...prev];
         updated[idx] = remoteState;
         saveAllMatches(updated);
@@ -316,10 +308,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
         lastSocketUpdateRef.current = Date.now();
-        setMatch(prev => {
-          if (getSyncVersion(remoteState) < getSyncVersion(prev)) return prev;
-          return remoteState;
-        });
+        setMatch(remoteState);
         console.log('[CricLive] Socket update received — score:', remoteState.scoreA?.runs + '/' + remoteState.scoreA?.overs + '.' + remoteState.scoreA?.balls);
       }
     });
@@ -370,10 +359,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       if (currentId && allowRemoteRefresh && !socketFresh) {
         fetchMatch(currentId).then(remoteState => {
           const remote = remoteState as MatchState;
-          setMatch(prev => {
-            if (getSyncVersion(remote) < getSyncVersion(prev)) return prev;
-            return remote;
-          });
+          setMatch(remote);
           console.log('[CricLive] Poll fallback applied — no recent socket data');
         }).catch((err) => {
           console.error('[CricLive] Poll match fetch failed:', err);
