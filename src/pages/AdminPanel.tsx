@@ -170,6 +170,7 @@ const AdminPanelContent = () => {
   const chasingRuns = match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs;
   const runsToWin = Math.max(0, targetScore - chasingRuns);
   const showRunsToWin = match.currentInnings === 2 || match.status === 'ended';
+  const showTargetPanel = match.status === 'inningsBreak' || match.currentInnings === 2 || match.status === 'ended';
 
   const isScoreReady = !!(match.strikerId && match.nonStrikerId && match.bowlerId);
 
@@ -239,7 +240,7 @@ const AdminPanelContent = () => {
       </div>
 
       {/* Target Score */}
-      {match.status !== 'setup' && (
+      {showTargetPanel && (
         <div className="glass-card p-4">
           <div className="flex items-end justify-between gap-6">
             <div>
