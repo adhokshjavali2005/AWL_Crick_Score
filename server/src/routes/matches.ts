@@ -129,8 +129,8 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
     const existingState = existing.state as Record<string, unknown>;
     const previousStatus = (existing.status || existingState.status || 'idle') as string;
     const nextStatus = (state.status || 'idle') as string;
-    const previousTeamAName = (existing.teamAName || existingState.teamAName || existingState.teamA?.name || '') as string;
-    const previousTeamBName = (existing.teamBName || existingState.teamBName || existingState.teamB?.name || '') as string;
+    const previousTeamAName = (existing.teamAName || existingState.teamAName || extractTeamName(existingState.teamA) || '') as string;
+    const previousTeamBName = (existing.teamBName || existingState.teamBName || extractTeamName(existingState.teamB) || '') as string;
     const nextTeamAName = extractTeamName(state.teamA);
     const nextTeamBName = extractTeamName(state.teamB);
 
