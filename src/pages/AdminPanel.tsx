@@ -154,13 +154,6 @@ const AdminPanelContent = () => {
 
   const battingPlayers = match.battingTeam === 'A' ? match.teamA.players : match.teamB.players;
   const bowlingPlayers = match.battingTeam === 'A' ? match.teamB.players : match.teamA.players;
-  const firstInningsRuns = match.currentInnings === 1
-    ? (match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs)
-    : (match.battingTeam === 'A' ? match.scoreB.runs : match.scoreA.runs);
-  const targetScore = firstInningsRuns + 1;
-  const targetIsBright = match.status === 'inningsBreak' || match.currentInnings === 2 || match.status === 'ended';
-  const chasingRuns = match.battingTeam === 'A' ? match.scoreA.runs : match.scoreB.runs;
-  const runsToWin = match.currentInnings === 2 ? Math.max(0, targetScore - chasingRuns) : targetScore;
 
   const isScoreReady = !!(match.strikerId && match.nonStrikerId && match.bowlerId);
 
@@ -226,20 +219,6 @@ const AdminPanelContent = () => {
           {match.status === 'inningsBreak' && (
             <p className="text-xs text-muted-foreground">Innings Break — go to Score panel to start 2nd innings</p>
           )}
-        </div>
-      </div>
-
-      {/* Target Score */}
-      <div className="rounded-2xl border border-border/70 bg-gradient-to-r from-slate-900/65 via-slate-900/35 to-slate-900/65 px-6 py-5">
-        <div className="flex items-end justify-between gap-6">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Target</p>
-            <p className={`mt-1 text-4xl leading-none font-bold ${targetIsBright ? 'text-foreground' : 'text-foreground/75'}`}>{targetScore}</p>
-          </div>
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Runs to win</p>
-            <p className={`mt-1 text-4xl leading-none font-bold ${targetIsBright ? 'text-primary' : 'text-foreground/75'}`}>{runsToWin}</p>
-          </div>
         </div>
       </div>
 
