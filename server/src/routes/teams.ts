@@ -54,6 +54,14 @@ router.put('/:name/players', requireAuth, async (req: Request, res: Response) =>
       return;
     }
 
+    const playerNames = players
+      .map((p: unknown) => {
+        if (!p || typeof p !== 'object') return '';
+        const name = (p as { name?: unknown }).name;
+        return typeof name === 'string' ? name.trim() : '';
+      })
+      .filter((name): name is string => Boolean(name));
+
     await prisma.team.upsert({
       where: { name: teamName },
       create: { name: teamName },
@@ -65,9 +73,11 @@ router.put('/:name/players', requireAuth, async (req: Request, res: Response) =>
       create: {
         teamName,
         players: players,
+        playerNames,
       },
       update: {
         players: players,
+        playerNames,
       },
     });
 

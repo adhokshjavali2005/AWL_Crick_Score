@@ -37,6 +37,7 @@ model TeamPlayers {
   id        String   @id @default(uuid())
   teamName  String   @unique
   players   Json     /// Array of { id: string, name: string }
+  playerNames Json   @default("[]") /// Array of player names for easier filtering/viewing
   updatedAt DateTime @updatedAt
 }
 
