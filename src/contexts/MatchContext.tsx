@@ -309,8 +309,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         return updated;
       });
 
-      // Update current match for spectators (not admin)
-      if (data.matchId === match.id && !isAdminRef.current) {
+      // Apply remote update unless this tab is actively performing local scoring actions.
+      if (data.matchId === match.id) {
+        const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 2000;
+        if (isAdminRef.current && localChangeIsFresh) {
+          return;
+        }
         lastSocketUpdateRef.current = Date.now();
         setMatch(prev => {
           if (getSyncVersion(remoteState) < getSyncVersion(prev)) return prev;
@@ -358,10 +362,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         console.error('[CricLive] Poll fetch failed:', err);
       });
 
-      // Refresh current match for spectators (non-admins) — only if socket hasn't delivered fresh data recently
+      // Refresh current match unless this tab is actively doing local scoring.
       const currentId = matchIdRef.current;
       const socketFresh = Date.now() - lastSocketUpdateRef.current < 5000; // socket delivered in last 5s
-      if (currentId && !isAdminRef.current && !socketFresh) {
+      const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 2000;
+      const allowRemoteRefresh = !isAdminRef.current || !localChangeIsFresh;
+      if (currentId && allowRemoteRefresh && !socketFresh) {
         fetchMatch(currentId).then(remoteState => {
           const remote = remoteState as MatchState;
           setMatch(prev => {
