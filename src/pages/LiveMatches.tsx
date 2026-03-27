@@ -4,9 +4,26 @@ import { ArrowLeft, Radio, RefreshCw, Trophy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const LiveMatches = () => {
-  const { allMatches, loadMatch } = useMatch();
+  const { allMatches, loadMatch, refreshMatchesFromServer } = useMatch();
   const navigate = useNavigate();
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  // Always refresh from server when page opens/focuses so all devices see same list.
+  useEffect(() => {
+    refreshMatchesFromServer().catch(() => { /* ignore */ });
+
+    const handleFocus = () => {
+      refreshMatchesFromServer().catch(() => { /* ignore */ });
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [refreshMatchesFromServer]);
 
   // Track when allMatches changes = data was refreshed
   useEffect(() => {
@@ -15,7 +32,9 @@ const LiveMatches = () => {
     }
   }, [allMatches]);
 
-  const liveMatches = allMatches.filter(
+  const uniqueMatches = Array.from(new Map(allMatches.map(m => [m.id, m])).values());
+
+  const liveMatches = uniqueMatches.filter(
     m => m.status === 'live' || m.status === 'inningsBreak' || m.status === 'setup' || m.status === 'paused' || m.status === 'ended'
   );
 

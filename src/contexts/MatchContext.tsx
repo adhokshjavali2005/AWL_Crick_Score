@@ -56,6 +56,7 @@ export interface MatchState {
 interface MatchContextType {
   match: MatchState;
   allMatches: MatchState[];
+  refreshMatchesFromServer: () => Promise<void>;
   createMatch: (teamAName: string, teamBName: string) => void;
   loadMatch: (matchId: string) => void;
   addPlayer: (team: 'A' | 'B', name: string) => void;
@@ -261,6 +262,15 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     return isAdminRef.current && localChangeIsFresh;
   }, []);
 
+  const refreshMatchesFromServer = useCallback(async () => {
+    const matches = await fetchMatches();
+    const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
+    // Server list is authoritative across devices/logins.
+    setAllMatches(states);
+    saveAllMatches(states);
+    lastFullListSyncAtRef.current = Date.now();
+  }, []);
+
   // Wrapper for setMatch that marks the change as local (from user action)
   // Also emits socket update SYNCHRONOUSLY (no effect delay) for zero-lag spectator updates
   const setMatchLocal = useCallback((updater: MatchState | ((prev: MatchState) => MatchState)) => {
@@ -411,34 +421,20 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubList = onMatchesUpdated(() => {
       // Refresh match list from API
-      fetchMatches().then(matches => {
-        const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
-        setAllMatches(prev => {
-          const merged = mergeMatchesByVersion(prev, states);
-          saveAllMatches(merged);
-          return merged;
-        });
-      }).catch(() => { /* ignore */ });
+      refreshMatchesFromServer().catch(() => { /* ignore */ });
     });
 
     return () => {
       unsubUpdate();
       unsubList();
     };
-  }, [match.id]);
+  }, [match.id, isLocalAuthoritativeWindow, refreshMatchesFromServer]);
 
   // Initial fetch of all matches from API on mount + polling fallback
   useEffect(() => {
     // Initial fetch
-    fetchMatches().then(matches => {
-      const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
-      setAllMatches(prev => {
-        const merged = mergeMatchesByVersion(prev, states);
-        saveAllMatches(merged);
-        return merged;
-      });
-      lastFullListSyncAtRef.current = Date.now();
-      console.log('[CricLive] Initial fetch: loaded', states.length, 'matches');
+    refreshMatchesFromServer().then(() => {
+      console.log('[CricLive] Initial fetch complete');
     }).catch((err) => {
       console.error('[CricLive] Initial fetch failed:', err);
     });
@@ -449,17 +445,9 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       const forceListSync = Date.now() - lastFullListSyncAtRef.current > 30000; // catch external DB edits/deletes
 
       // Refresh list if socket is stale OR at periodic consistency checkpoint.
-      // This keeps manual Supabase deletes in sync without per-ball API load.
+      // This keeps manual Supabase edits/deletes in sync without per-ball API load.
       if (!socketFresh || forceListSync) {
-        fetchMatches().then(matches => {
-          const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
-          setAllMatches(prev => {
-            const merged = mergeMatchesByVersion(prev, states);
-            saveAllMatches(merged);
-            return merged;
-          });
-          lastFullListSyncAtRef.current = Date.now();
-        }).catch((err) => {
+        refreshMatchesFromServer().catch((err) => {
           console.error('[CricLive] Poll fetch failed:', err);
         });
       }
@@ -478,11 +466,11 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         }).catch((err) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
-      }
+      }).catch(() => { /* ignore */ });
     }, 8000);
 
     return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLocalAuthoritativeWindow, refreshMatchesFromServer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Also listen for localStorage changes from other local tabs
   useEffect(() => {
@@ -1020,6 +1008,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       value={{
         match,
         allMatches,
+        refreshMatchesFromServer,
         createMatch,
         loadMatch,
         addPlayer,
