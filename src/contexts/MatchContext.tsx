@@ -177,6 +177,10 @@ const normalizePlayersFromApi = (teamName: string, players: unknown): Player[] =
   if (!Array.isArray(players)) return [];
   return players
     .map((player, index) => {
+      if (typeof player === 'string' && player.trim()) {
+        const safeName = player.trim();
+        return { id: `${teamName}-${index}-${safeName}`, name: safeName };
+      }
       if (!player || typeof player !== 'object') return null;
       const p = player as { id?: unknown; name?: unknown };
       if (typeof p.name !== 'string' || !p.name.trim()) return null;
@@ -679,8 +683,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       setMatch(prev => {
         if (prev.id !== newMatch.id) return prev;
         // If API returns an empty list, respect it (team/player deletion in DB).
-        const pA = Array.isArray(apiPlayersA) ? apiPlayersA : prev.teamA.players;
-        const pB = Array.isArray(apiPlayersB) ? apiPlayersB : prev.teamB.players;
+        const pA = Array.isArray(apiPlayersA)
+          ? normalizePlayersFromApi(teamAName, apiPlayersA)
+          : prev.teamA.players;
+        const pB = Array.isArray(apiPlayersB)
+          ? normalizePlayersFromApi(teamBName, apiPlayersB)
+          : prev.teamB.players;
 
         if (teamAName) saveTeamPlayers(teamAName, pA);
         if (teamBName) saveTeamPlayers(teamBName, pB);
