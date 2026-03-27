@@ -466,7 +466,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         }).catch((err) => {
           console.error('[CricLive] Poll match fetch failed:', err);
         });
-      }).catch(() => { /* ignore */ });
+      }
     }, 8000);
 
     return () => clearInterval(interval);
