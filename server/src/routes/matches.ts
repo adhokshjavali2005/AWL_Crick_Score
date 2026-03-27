@@ -15,6 +15,11 @@ function extractTeamName(team: unknown): string {
   return typeof name === 'string' ? name : '';
 }
 
+function extractMatchStatus(rawStatus: unknown): string {
+  const allowed = new Set(['idle', 'setup', 'live', 'paused', 'inningsBreak', 'ended']);
+  return typeof rawStatus === 'string' && allowed.has(rawStatus) ? rawStatus : 'idle';
+}
+
 function extractTeamPlayers(team: unknown): unknown[] {
   if (!team || typeof team !== 'object') return [];
   const players = (team as { players?: unknown }).players;
@@ -115,6 +120,44 @@ router.get('/', optionalAuth, async (_req: Request, res: Response) => {
         updatedAt: true,
       },
     });
+
+    const repairOps: Array<Promise<unknown>> = [];
+    for (const match of matches) {
+      const state = (match.state && typeof match.state === 'object')
+        ? (match.state as Record<string, unknown>)
+        : {};
+
+      const stateStatus = extractMatchStatus(state.status);
+      const nextStatus = stateStatus || match.status;
+      const nextTeamAName = extractTeamName(state.teamA) || match.teamAName || '';
+      const nextTeamBName = extractTeamName(state.teamB) || match.teamBName || '';
+
+      const needsRepair =
+        match.status !== nextStatus ||
+        match.teamAName !== nextTeamAName ||
+        match.teamBName !== nextTeamBName;
+
+      if (needsRepair) {
+        repairOps.push(
+          prisma.match.update({
+            where: { id: match.id },
+            data: {
+              status: nextStatus,
+              teamAName: nextTeamAName,
+              teamBName: nextTeamBName,
+            },
+          })
+        );
+        match.status = nextStatus;
+        match.teamAName = nextTeamAName;
+        match.teamBName = nextTeamBName;
+      }
+    }
+
+    if (repairOps.length > 0) {
+      await Promise.allSettled(repairOps);
+    }
+
     res.json(matches);
   } catch (error) {
     console.error('Error listing matches:', error);

@@ -253,6 +253,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const lastFullListSyncAtRef = useRef<number>(0);
   const localMutationIdRef = useRef<number>(0);
   const lastLocalMutationAtRef = useRef<number>(0);
+  const pendingApiSyncRef = useRef<boolean>(false);
 
   const scheduleSocketEmit = useCallback((next: MatchState) => {
     if (!next.id || next.admins.length === 0) return;
@@ -300,6 +301,18 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     setAllMatches(states);
     saveAllMatches(states);
     lastFullListSyncAtRef.current = Date.now();
+  }, []);
+
+  const syncMatchToApi = useCallback(async (stateToSync: MatchState, mode: 'immediate' | 'debounced' | 'retry') => {
+    if (!stateToSync.id || stateToSync.admins.length === 0) return;
+    try {
+      await updateMatchAPI(stateToSync.id, stateToSync);
+      pendingApiSyncRef.current = false;
+      console.log(`[CricLive] Synced to API (${mode}):`, stateToSync.status);
+    } catch (err) {
+      pendingApiSyncRef.current = true;
+      console.error(`[CricLive] API sync failed (${mode}):`, err);
+    }
   }, []);
 
   // Wrapper for setMatch that marks the change as local (from user action)
@@ -361,6 +374,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
     // Sync to API — only for LOCAL changes by admin (socket already emitted in setMatchLocal)
     if (match.id && match.admins.length > 0 && isLocalChangeRef.current) {
+      pendingApiSyncRef.current = true;
       const isCriticalChange = match.status === 'ended' || match.status === 'inningsBreak';
       const isConfigPhase = match.status === 'setup' || match.status === 'paused';
       const shouldSyncImmediately = isCriticalChange || isConfigPhase;
@@ -372,24 +386,31 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         if (localStorageTimerRef.current) clearTimeout(localStorageTimerRef.current);
         localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(match));
 
-        updateMatchAPI(match.id, match).then(() => {
-          console.log('[CricLive] Synced to API (immediate):', match.status);
-        }).catch((err) => {
-          console.error('[CricLive] API sync failed:', err);
-        });
+        void syncMatchToApi(match, 'immediate');
       } else {
         syncTimerRef.current = setTimeout(() => {
-          updateMatchAPI(matchRef.current.id, matchRef.current).then(() => {
-            console.log('[CricLive] Synced to API');
-          }).catch((err) => {
-            console.error('[CricLive] API sync failed:', err);
-          });
+          void syncMatchToApi(matchRef.current, 'debounced');
         }, 500);
       }
     }
     // Reset the local change flag
     isLocalChangeRef.current = false;
-  }, [match]);
+  }, [match, syncMatchToApi]);
+
+  // Retry failed API sync attempts so Supabase status/data eventually matches socket state.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!pendingApiSyncRef.current) return;
+      const latest = matchRef.current;
+      if (!latest.id || latest.admins.length === 0) {
+        pendingApiSyncRef.current = false;
+        return;
+      }
+      void syncMatchToApi(latest, 'retry');
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [syncMatchToApi]);
 
   useEffect(() => {
     return () => {
