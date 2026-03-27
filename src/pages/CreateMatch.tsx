@@ -16,17 +16,17 @@ const CreateMatch = () => {
   const teamAInputRef = useRef<HTMLInputElement>(null);
   const teamBInputRef = useRef<HTMLInputElement>(null);
 
-  const [previousTeams, setPreviousTeams] = useState<string[]>(() => getAllTeamNames());
+  const [previousTeams, setPreviousTeams] = useState<string[]>([]);
 
   const refreshTeamNames = useCallback(() => {
     fetchTeamNames().then((names) => {
       const normalized = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
       setPreviousTeams(normalized);
     }).catch(() => {
-      // Keep local fallback if API is temporarily unavailable.
-      setPreviousTeams(getAllTeamNames());
+      // If API fails, avoid reviving deleted local cache entries.
+      setPreviousTeams([]);
     });
-  }, [getAllTeamNames]);
+  }, []);
 
   useEffect(() => {
     refreshTeamNames();

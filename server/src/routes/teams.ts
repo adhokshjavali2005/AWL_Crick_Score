@@ -56,21 +56,12 @@ async function upsertTeamsMirror(teamName: string, players: unknown[], playerNam
 router.get('/', async (_req: Request, res: Response) => {
   try {
     await ensureTeamsTableShape();
-    const [playerTeams, storedTeams] = await Promise.all([
-      prisma.teamPlayers.findMany({
-        orderBy: { teamName: 'asc' },
-        select: { teamName: true },
-      }),
-      prisma.$queryRaw<Array<{ teamName: string }>>`
-        SELECT "teamName"
-        FROM "Teams"
-        ORDER BY "teamName" ASC
-      `,
-    ]);
-    const names = Array.from(new Set([
-      ...playerTeams.map(t => t.teamName),
-      ...storedTeams.map(t => t.teamName),
-    ])).sort((a, b) => a.localeCompare(b));
+    const storedTeams = await prisma.$queryRaw<Array<{ teamName: string }>>`
+      SELECT "teamName"
+      FROM "Teams"
+      ORDER BY "teamName" ASC
+    `;
+    const names = storedTeams.map(t => t.teamName);
     res.json(names);
   } catch (error) {
     console.error('Error listing teams:', error);
@@ -85,19 +76,14 @@ router.get('/:name/players', async (req, res) => {
   try {
     await ensureTeamsTableShape();
     const teamName = req.params.name as string;
-    const [team, mirroredTeamRows] = await Promise.all([
-      prisma.teamPlayers.findUnique({
-        where: { teamName },
-      }),
-      prisma.$queryRaw<Array<{ players: unknown }>>`
-        SELECT "players"
-        FROM "Teams"
-        WHERE "teamName" = ${teamName}
-        LIMIT 1
-      `,
-    ]);
+    const mirroredTeamRows = await prisma.$queryRaw<Array<{ players: unknown }>>`
+      SELECT "players"
+      FROM "Teams"
+      WHERE "teamName" = ${teamName}
+      LIMIT 1
+    `;
     const mirroredPlayers = mirroredTeamRows[0]?.players;
-    res.json(team?.players || mirroredPlayers || []);
+    res.json(mirroredPlayers || []);
   } catch (error) {
     console.error('Error getting team players:', error);
     res.status(500).json({ error: 'Failed to get team players' });
