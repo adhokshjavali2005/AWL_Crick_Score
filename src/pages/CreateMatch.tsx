@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMatch } from '@/contexts/MatchContext';
+import { fetchTeamNames } from '@/lib/api';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 
 const CreateMatch = () => {
@@ -15,7 +16,30 @@ const CreateMatch = () => {
   const teamAInputRef = useRef<HTMLInputElement>(null);
   const teamBInputRef = useRef<HTMLInputElement>(null);
 
-  const previousTeams = getAllTeamNames();
+  const [previousTeams, setPreviousTeams] = useState<string[]>(() => getAllTeamNames());
+
+  const refreshTeamNames = useCallback(() => {
+    fetchTeamNames().then((names) => {
+      const normalized = Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+      setPreviousTeams(normalized);
+    }).catch(() => {
+      // Keep local fallback if API is temporarily unavailable.
+      setPreviousTeams(getAllTeamNames());
+    });
+  }, [getAllTeamNames]);
+
+  useEffect(() => {
+    refreshTeamNames();
+
+    const handleFocus = () => refreshTeamNames();
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [refreshTeamNames]);
   
   // Filter teams based on input
   const filteredTeamsA = previousTeams.filter(team =>
