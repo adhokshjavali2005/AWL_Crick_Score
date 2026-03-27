@@ -282,6 +282,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
   const localMutationIdRef = useRef<number>(0);
   const lastLocalMutationAtRef = useRef<number>(0);
   const pendingApiSyncRef = useRef<boolean>(false);
+  const pendingTeamPlayersSyncRef = useRef<Record<string, number>>({});
 
   const scheduleSocketEmit = useCallback((next: MatchState) => {
     if (!next.id || next.admins.length === 0) return;
@@ -296,6 +297,27 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
     // updates cannot roll back just-clicked values anywhere in admin flows.
     const localChangeIsFresh = Date.now() - lastLocalMutationAtRef.current < 4000;
     return isAdminRef.current && localChangeIsFresh;
+  }, []);
+
+  const markTeamPlayersPending = useCallback((teamName: string) => {
+    const key = teamName.trim().toLowerCase();
+    if (!key) return;
+    pendingTeamPlayersSyncRef.current[key] = Date.now();
+  }, []);
+
+  const clearTeamPlayersPending = useCallback((teamName: string) => {
+    const key = teamName.trim().toLowerCase();
+    if (!key) return;
+    delete pendingTeamPlayersSyncRef.current[key];
+  }, []);
+
+  const isTeamPlayersPending = useCallback((teamName: string) => {
+    const key = teamName.trim().toLowerCase();
+    if (!key) return false;
+    const startedAt = pendingTeamPlayersSyncRef.current[key];
+    if (!startedAt) return false;
+    // Avoid remote overwrite for a short period while save API catches up.
+    return Date.now() - startedAt < 12000;
   }, []);
 
   const refreshMatchesFromServer = useCallback(async () => {
@@ -454,17 +476,25 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       const current = matchRef.current;
       if (!current.id) return;
       if (isLocalAuthoritativeWindow()) return;
+      if (isAdminRef.current && (current.status === 'setup' || current.status === 'paused')) return;
 
       const teamAName = current.teamA.name?.trim();
       const teamBName = current.teamB.name?.trim();
       if (!teamAName && !teamBName) return;
 
+      const skipTeamARefresh = teamAName ? isTeamPlayersPending(teamAName) : false;
+      const skipTeamBRefresh = teamBName ? isTeamPlayersPending(teamBName) : false;
+
       Promise.all([
-        teamAName ? fetchTeamPlayers(teamAName).catch(() => null) : Promise.resolve(null),
-        teamBName ? fetchTeamPlayers(teamBName).catch(() => null) : Promise.resolve(null),
+        teamAName && !skipTeamARefresh ? fetchTeamPlayers(teamAName).catch(() => null) : Promise.resolve(null),
+        teamBName && !skipTeamBRefresh ? fetchTeamPlayers(teamBName).catch(() => null) : Promise.resolve(null),
       ]).then(([apiPlayersA, apiPlayersB]) => {
-        const normalizedA = teamAName ? normalizePlayersFromApi(teamAName, apiPlayersA) : current.teamA.players;
-        const normalizedB = teamBName ? normalizePlayersFromApi(teamBName, apiPlayersB) : current.teamB.players;
+        const normalizedA = teamAName
+          ? (skipTeamARefresh ? current.teamA.players : normalizePlayersFromApi(teamAName, apiPlayersA))
+          : current.teamA.players;
+        const normalizedB = teamBName
+          ? (skipTeamBRefresh ? current.teamB.players : normalizePlayersFromApi(teamBName, apiPlayersB))
+          : current.teamB.players;
 
         const changedA = !playersAreEqual(current.teamA.players, normalizedA);
         const changedB = !playersAreEqual(current.teamB.players, normalizedB);
@@ -494,7 +524,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       window.removeEventListener('focus', syncPlayers);
       document.removeEventListener('visibilitychange', syncPlayers);
     };
-  }, [isLocalAuthoritativeWindow]);
+  }, [isLocalAuthoritativeWindow, isTeamPlayersPending]);
 
   // Emergency durability: persist last known good state on runtime failures.
   useEffect(() => {
@@ -733,7 +763,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       // Save to localStorage cache + API
       if (teamName) {
         saveTeamPlayers(teamName, updatedPlayers);
-        saveTeamPlayersAPI(teamName, updatedPlayers).catch(() => { /* will sync later */ });
+        markTeamPlayersPending(teamName);
+        saveTeamPlayersAPI(teamName, updatedPlayers)
+          .then(() => {
+            clearTeamPlayersPending(teamName);
+          })
+          .catch(() => { /* will sync later */ });
       }
       
       return {
@@ -741,7 +776,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         [key]: { ...prev[key], players: updatedPlayers },
       };
     });
-  }, []);
+  }, [clearTeamPlayersPending, markTeamPlayersPending]);
 
   const removePlayer = useCallback((team: 'A' | 'B', playerId: string) => {
     setMatchLocal(prev => {
@@ -752,7 +787,12 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       // Update localStorage cache + API
       if (teamName) {
         saveTeamPlayers(teamName, updatedPlayers);
-        saveTeamPlayersAPI(teamName, updatedPlayers).catch(() => { /* will sync later */ });
+        markTeamPlayersPending(teamName);
+        saveTeamPlayersAPI(teamName, updatedPlayers)
+          .then(() => {
+            clearTeamPlayersPending(teamName);
+          })
+          .catch(() => { /* will sync later */ });
       }
       
       return {
@@ -760,7 +800,7 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         [key]: { ...prev[key], players: updatedPlayers },
       };
     });
-  }, []);
+  }, [clearTeamPlayersPending, markTeamPlayersPending]);
 
   const setBattingTeam = useCallback((team: 'A' | 'B') => {
     setMatchLocal(prev => ({ ...prev, battingTeam: team, strikerId: null, nonStrikerId: null, bowlerId: null }));
