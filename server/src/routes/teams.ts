@@ -50,6 +50,31 @@ async function upsertTeamsMirror(teamName: string, players: unknown[], playerNam
   `;
 }
 
+async function findCanonicalTeamName(teamName: string): Promise<string> {
+  const trimmed = teamName.trim();
+  if (!trimmed) return '';
+
+  const teamsMatch = await prisma.$queryRaw<Array<{ teamName: string }>>`
+    SELECT "teamName"
+    FROM "Teams"
+    WHERE LOWER("teamName") = LOWER(${trimmed})
+    ORDER BY "updatedAt" DESC
+    LIMIT 1
+  `;
+  if (teamsMatch[0]?.teamName) return teamsMatch[0].teamName;
+
+  const rosterMatch = await prisma.$queryRaw<Array<{ teamName: string }>>`
+    SELECT "teamName"
+    FROM "TeamPlayers"
+    WHERE LOWER("teamName") = LOWER(${trimmed})
+    ORDER BY "updatedAt" DESC
+    LIMIT 1
+  `;
+  if (rosterMatch[0]?.teamName) return rosterMatch[0].teamName;
+
+  return trimmed;
+}
+
 function toPlayerObjects(teamName: string, players: unknown, playerNames: unknown): Array<{ id: string; name: string }> {
   if (Array.isArray(players) && players.length > 0) {
     const normalized = players
@@ -106,16 +131,50 @@ router.get('/', async (_req: Request, res: Response) => {
 router.get('/:name/players', async (req, res) => {
   try {
     await ensureTeamsTableShape();
-    const teamName = req.params.name as string;
-    const mirroredTeamRows = await prisma.$queryRaw<Array<{ players: unknown; playerNames: unknown }>>`
-      SELECT "players", "playerNames"
-      FROM "Teams"
-      WHERE LOWER("teamName") = LOWER(${teamName})
-      ORDER BY "updatedAt" DESC
-      LIMIT 1
-    `;
-    const row = mirroredTeamRows[0];
-    const reflectedPlayers = toPlayerObjects(teamName, row?.players, row?.playerNames);
+    const requestedTeamName = req.params.name as string;
+    const teamName = await findCanonicalTeamName(requestedTeamName);
+
+    const [mirroredTeamRows, rosterRows] = await Promise.all([
+      prisma.$queryRaw<Array<{ players: unknown; playerNames: unknown; updatedAt: Date }>>`
+        SELECT "players", "playerNames", "updatedAt"
+        FROM "Teams"
+        WHERE LOWER("teamName") = LOWER(${teamName})
+        ORDER BY "updatedAt" DESC
+        LIMIT 1
+      `,
+      prisma.$queryRaw<Array<{ players: unknown; playerNames: unknown; updatedAt: Date }>>`
+        SELECT "players", "playerNames", "updatedAt"
+        FROM "TeamPlayers"
+        WHERE LOWER("teamName") = LOWER(${teamName})
+        ORDER BY "updatedAt" DESC
+        LIMIT 1
+      `,
+    ]);
+
+    const mirrored = mirroredTeamRows[0];
+    const roster = rosterRows[0];
+
+    const mirroredPlayers = toPlayerObjects(teamName, mirrored?.players, mirrored?.playerNames);
+    const rosterPlayers = toPlayerObjects(teamName, roster?.players, roster?.playerNames);
+
+    const mirroredTime = mirrored?.updatedAt ? new Date(mirrored.updatedAt).getTime() : 0;
+    const rosterTime = roster?.updatedAt ? new Date(roster.updatedAt).getTime() : 0;
+
+    let reflectedPlayers: Array<{ id: string; name: string }> = [];
+    if (mirroredPlayers.length === 0 && rosterPlayers.length > 0) {
+      reflectedPlayers = rosterPlayers;
+    } else if (rosterPlayers.length === 0 && mirroredPlayers.length > 0) {
+      reflectedPlayers = mirroredPlayers;
+    } else {
+      reflectedPlayers = rosterTime > mirroredTime ? rosterPlayers : mirroredPlayers;
+    }
+
+    // Heal Teams row when TeamPlayers is fresher/non-empty.
+    if (reflectedPlayers.length > 0 && (mirroredPlayers.length === 0 || rosterTime > mirroredTime)) {
+      const reflectedNames = reflectedPlayers.map((p) => p.name);
+      await upsertTeamsMirror(teamName, reflectedPlayers, reflectedNames);
+    }
+
     res.json(reflectedPlayers);
   } catch (error) {
     console.error('Error getting team players:', error);
@@ -129,7 +188,8 @@ router.get('/:name/players', async (req, res) => {
 router.put('/:name/players', requireAuth, async (req: Request, res: Response) => {
   try {
     await ensureTeamsTableShape();
-    const teamName = (req.params.name as string).trim();
+    const requestedTeamName = (req.params.name as string).trim();
+    const teamName = await findCanonicalTeamName(requestedTeamName);
     const { players } = req.body;
     if (!teamName) {
       res.status(400).json({ error: 'Team name is required' });
