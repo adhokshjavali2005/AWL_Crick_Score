@@ -476,7 +476,6 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       const current = matchRef.current;
       if (!current.id) return;
       if (isLocalAuthoritativeWindow()) return;
-      if (isAdminRef.current && (current.status === 'setup' || current.status === 'paused')) return;
 
       const teamAName = current.teamA.name?.trim();
       const teamBName = current.teamB.name?.trim();
@@ -490,10 +489,14 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
         teamBName && !skipTeamBRefresh ? fetchTeamPlayers(teamBName).catch(() => null) : Promise.resolve(null),
       ]).then(([apiPlayersA, apiPlayersB]) => {
         const normalizedA = teamAName
-          ? (skipTeamARefresh ? current.teamA.players : normalizePlayersFromApi(teamAName, apiPlayersA))
+          ? (skipTeamARefresh || !Array.isArray(apiPlayersA)
+              ? current.teamA.players
+              : normalizePlayersFromApi(teamAName, apiPlayersA))
           : current.teamA.players;
         const normalizedB = teamBName
-          ? (skipTeamBRefresh ? current.teamB.players : normalizePlayersFromApi(teamBName, apiPlayersB))
+          ? (skipTeamBRefresh || !Array.isArray(apiPlayersB)
+              ? current.teamB.players
+              : normalizePlayersFromApi(teamBName, apiPlayersB))
           : current.teamB.players;
 
         const changedA = !playersAreEqual(current.teamA.players, normalizedA);
