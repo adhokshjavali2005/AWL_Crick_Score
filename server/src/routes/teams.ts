@@ -110,7 +110,8 @@ router.get('/:name/players', async (req, res) => {
     const mirroredTeamRows = await prisma.$queryRaw<Array<{ players: unknown; playerNames: unknown }>>`
       SELECT "players", "playerNames"
       FROM "Teams"
-      WHERE "teamName" = ${teamName}
+      WHERE LOWER("teamName") = LOWER(${teamName})
+      ORDER BY "updatedAt" DESC
       LIMIT 1
     `;
     const row = mirroredTeamRows[0];
