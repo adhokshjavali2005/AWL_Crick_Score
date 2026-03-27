@@ -50,6 +50,37 @@ async function upsertTeamsMirror(teamName: string, players: unknown[], playerNam
   `;
 }
 
+function toPlayerObjects(teamName: string, players: unknown, playerNames: unknown): Array<{ id: string; name: string }> {
+  if (Array.isArray(players) && players.length > 0) {
+    const normalized = players
+      .map((player, index) => {
+        if (!player || typeof player !== 'object') return null;
+        const p = player as { id?: unknown; name?: unknown };
+        if (typeof p.name !== 'string' || !p.name.trim()) return null;
+        const safeName = p.name.trim();
+        const safeId = typeof p.id === 'string' && p.id.trim()
+          ? p.id
+          : `${teamName}-${index}-${safeName}`;
+        return { id: safeId, name: safeName };
+      })
+      .filter((item): item is { id: string; name: string } => Boolean(item));
+
+    if (normalized.length > 0) return normalized;
+  }
+
+  if (Array.isArray(playerNames)) {
+    return playerNames
+      .map((name, index) => {
+        if (typeof name !== 'string' || !name.trim()) return null;
+        const safeName = name.trim();
+        return { id: `${teamName}-${index}-${safeName}`, name: safeName };
+      })
+      .filter((item): item is { id: string; name: string } => Boolean(item));
+  }
+
+  return [];
+}
+
 /**
  * GET /api/teams — List all team names
  */
@@ -76,14 +107,15 @@ router.get('/:name/players', async (req, res) => {
   try {
     await ensureTeamsTableShape();
     const teamName = req.params.name as string;
-    const mirroredTeamRows = await prisma.$queryRaw<Array<{ players: unknown }>>`
-      SELECT "players"
+    const mirroredTeamRows = await prisma.$queryRaw<Array<{ players: unknown; playerNames: unknown }>>`
+      SELECT "players", "playerNames"
       FROM "Teams"
       WHERE "teamName" = ${teamName}
       LIMIT 1
     `;
-    const mirroredPlayers = mirroredTeamRows[0]?.players;
-    res.json(mirroredPlayers || []);
+    const row = mirroredTeamRows[0];
+    const reflectedPlayers = toPlayerObjects(teamName, row?.players, row?.playerNames);
+    res.json(reflectedPlayers);
   } catch (error) {
     console.error('Error getting team players:', error);
     res.status(500).json({ error: 'Failed to get team players' });

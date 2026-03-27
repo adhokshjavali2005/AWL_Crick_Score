@@ -173,6 +173,30 @@ const mergeMatchesByVersion = (current: MatchState[], incoming: MatchState[]): M
   });
 };
 
+const normalizePlayersFromApi = (teamName: string, players: unknown): Player[] => {
+  if (!Array.isArray(players)) return [];
+  return players
+    .map((player, index) => {
+      if (!player || typeof player !== 'object') return null;
+      const p = player as { id?: unknown; name?: unknown };
+      if (typeof p.name !== 'string' || !p.name.trim()) return null;
+      const safeName = p.name.trim();
+      const safeId = typeof p.id === 'string' && p.id.trim()
+        ? p.id
+        : `${teamName}-${index}-${safeName}`;
+      return { id: safeId, name: safeName };
+    })
+    .filter((item): item is Player => Boolean(item));
+};
+
+const playersAreEqual = (a: Player[], b: Player[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i]?.id !== b[i]?.id || a[i]?.name !== b[i]?.name) return false;
+  }
+  return true;
+};
+
 const toMatchStatus = (value: unknown, fallback: MatchStatus): MatchStatus => {
   const allowed: MatchStatus[] = ['idle', 'setup', 'live', 'paused', 'inningsBreak', 'ended'];
   return typeof value === 'string' && allowed.includes(value as MatchStatus)
@@ -419,6 +443,54 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
       if (socketEmitTimerRef.current) clearTimeout(socketEmitTimerRef.current);
     };
   }, []);
+
+  // Keep player lists in sync with Supabase edits (including dashboard/manual changes).
+  useEffect(() => {
+    const syncPlayers = () => {
+      const current = matchRef.current;
+      if (!current.id) return;
+      if (isLocalAuthoritativeWindow()) return;
+
+      const teamAName = current.teamA.name?.trim();
+      const teamBName = current.teamB.name?.trim();
+      if (!teamAName && !teamBName) return;
+
+      Promise.all([
+        teamAName ? fetchTeamPlayers(teamAName).catch(() => null) : Promise.resolve(null),
+        teamBName ? fetchTeamPlayers(teamBName).catch(() => null) : Promise.resolve(null),
+      ]).then(([apiPlayersA, apiPlayersB]) => {
+        const normalizedA = teamAName ? normalizePlayersFromApi(teamAName, apiPlayersA) : current.teamA.players;
+        const normalizedB = teamBName ? normalizePlayersFromApi(teamBName, apiPlayersB) : current.teamB.players;
+
+        const changedA = !playersAreEqual(current.teamA.players, normalizedA);
+        const changedB = !playersAreEqual(current.teamB.players, normalizedB);
+        if (!changedA && !changedB) return;
+
+        if (teamAName) saveTeamPlayers(teamAName, normalizedA);
+        if (teamBName) saveTeamPlayers(teamBName, normalizedB);
+
+        setMatch(prev => {
+          if (prev.id !== current.id) return prev;
+          return {
+            ...prev,
+            teamA: changedA ? { ...prev.teamA, players: normalizedA } : prev.teamA,
+            teamB: changedB ? { ...prev.teamB, players: normalizedB } : prev.teamB,
+          };
+        });
+      }).catch(() => { /* ignore */ });
+    };
+
+    syncPlayers();
+    const interval = setInterval(syncPlayers, 8000);
+    window.addEventListener('focus', syncPlayers);
+    document.addEventListener('visibilitychange', syncPlayers);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', syncPlayers);
+      document.removeEventListener('visibilitychange', syncPlayers);
+    };
+  }, [isLocalAuthoritativeWindow]);
 
   // Emergency durability: persist last known good state on runtime failures.
   useEffect(() => {
