@@ -173,6 +173,13 @@ const mergeMatchesByVersion = (current: MatchState[], incoming: MatchState[]): M
   });
 };
 
+const toMatchStatus = (value: unknown, fallback: MatchStatus): MatchStatus => {
+  const allowed: MatchStatus[] = ['idle', 'setup', 'live', 'paused', 'inningsBreak', 'ended'];
+  return typeof value === 'string' && allowed.includes(value as MatchStatus)
+    ? (value as MatchStatus)
+    : fallback;
+};
+
 const loadTeamPlayers = (teamName: string): Player[] => {
   try {
     const stored = localStorage.getItem(TEAM_PLAYERS_KEY);
@@ -264,7 +271,31 @@ export const MatchProvider = ({ children }: { children: ReactNode }) => {
 
   const refreshMatchesFromServer = useCallback(async () => {
     const matches = await fetchMatches();
-    const states = matches.map((m: { state: MatchState }) => normalizeMatchState(m.state));
+    const states = matches.map((m: {
+      id?: string;
+      state: MatchState;
+      status?: string;
+      teamAName?: string;
+      teamBName?: string;
+      updatedAt?: string;
+    }) => {
+      const base = normalizeMatchState(m.state);
+      const serverUpdatedAtMs = m.updatedAt ? new Date(m.updatedAt).getTime() : base.updatedAtMs;
+      return {
+        ...base,
+        id: m.id || base.id,
+        status: toMatchStatus(m.status, base.status),
+        teamA: {
+          ...base.teamA,
+          name: m.teamAName || base.teamA.name,
+        },
+        teamB: {
+          ...base.teamB,
+          name: m.teamBName || base.teamB.name,
+        },
+        updatedAtMs: Number.isFinite(serverUpdatedAtMs) ? serverUpdatedAtMs : base.updatedAtMs,
+      };
+    });
     // Server list is authoritative across devices/logins.
     setAllMatches(states);
     saveAllMatches(states);
